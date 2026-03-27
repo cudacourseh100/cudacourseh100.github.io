@@ -3,12 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta
-      name="description"
-      content="Lesson 1 of CUDA Programming for NVIDIA H100s: Hopper architecture, memory hierarchy, execution model, Tensor Cores, and asynchronous thinking."
-    >
-    <meta name="theme-color" content="#08111d">
-    <title>Lesson 1 | Introduction to H100s</title>
+        <meta name="description" content="Learn the H100 architecture, memory hierarchy, Tensor Cores, and the asynchronous Hopper execution model that changes how modern CUDA kernels are designed.">
+<meta name="theme-color" content="#08111d">
+        <title>H100 Architecture and Async Execution | Lesson 1 | CUDA Programming for NVIDIA H100s</title>
     <link rel="icon" href="../favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,6 +14,87 @@
       rel="stylesheet"
     >
     <link rel="stylesheet" href="../styles.css">
+  <!-- SEO:BEGIN -->
+    <meta name="author" content="Prateek Shukla">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <link rel="canonical" href="https://cudacourseh100.github.io/pages/lesson-1.html">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="CUDA Programming for NVIDIA H100s">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Introduction to H100s | Lesson 1">
+    <meta property="og:description" content="Learn the H100 architecture, memory hierarchy, Tensor Cores, and the asynchronous Hopper execution model that changes how modern CUDA kernels are designed.">
+    <meta property="og:url" content="https://cudacourseh100.github.io/pages/lesson-1.html">
+    <meta property="og:image" content="https://cudacourseh100.github.io/social-card.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="CUDA Programming for NVIDIA H100s">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Introduction to H100s | Lesson 1">
+    <meta name="twitter:description" content="Learn the H100 architecture, memory hierarchy, Tensor Cores, and the asynchronous Hopper execution model that changes how modern CUDA kernels are designed.">
+    <meta name="twitter:image" content="https://cudacourseh100.github.io/social-card.png">
+    <meta name="twitter:image:alt" content="CUDA Programming for NVIDIA H100s">
+    <meta property="article:author" content="Prateek Shukla">
+    <meta property="article:section" content="Hopper Architecture">
+    <meta property="article:tag" content="H100">
+    <meta property="article:tag" content="Hopper architecture">
+    <meta property="article:tag" content="memory hierarchy">
+    <meta property="article:tag" content="Tensor Cores">
+    <meta property="article:tag" content="asynchronous execution">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "TechArticle",
+          "@id": "https://cudacourseh100.github.io/pages/lesson-1.html#article",
+          "url": "https://cudacourseh100.github.io/pages/lesson-1.html",
+          "headline": "Introduction to H100s",
+          "name": "Introduction to H100s",
+          "description": "Learn the H100 architecture, memory hierarchy, Tensor Cores, and the asynchronous Hopper execution model that changes how modern CUDA kernels are designed.",
+          "inLanguage": "en",
+          "author": {
+            "@type": "Person",
+            "@id": "https://cudacourseh100.github.io/#person",
+            "name": "Prateek Shukla",
+            "url": "https://cudacourseh100.github.io/"
+          },
+          "mainEntityOfPage": "https://cudacourseh100.github.io/pages/lesson-1.html",
+          "articleSection": "Hopper Architecture",
+          "about": [
+            "H100",
+            "Hopper architecture",
+            "memory hierarchy",
+            "Tensor Cores",
+            "asynchronous execution"
+          ],
+          "isPartOf": {
+            "@type": "Course",
+            "name": "CUDA Programming for NVIDIA H100s",
+            "url": "https://cudacourseh100.github.io/"
+          }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://cudacourseh100.github.io/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Introduction to H100s",
+              "item": "https://cudacourseh100.github.io/pages/lesson-1.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+    <!-- SEO:END -->
   </head>
   <body class="lesson-view lesson-view-architecture">
     <header class="site-header">

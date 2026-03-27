@@ -3,12 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta
-      name="description"
-      content="Lesson 10 of CUDA Programming for NVIDIA H100s: Slurm orchestration, PMIx bootstrap, GPU binding, NCCL communicator setup, collective primitives, and distributed AI parallelism."
-    >
-    <meta name="theme-color" content="#08111d">
-    <title>Lesson 10 | Multi GPU Part 2</title>
+        <meta name="description" content="Slurm, PMIx, NCCL communicators, collectives, and data, tensor, pipeline, and expert parallel orchestration on H100 systems.">
+<meta name="theme-color" content="#08111d">
+        <title>NCCL, PMIx, and Distributed Orchestration | Lesson 10 | CUDA Programming for NVIDIA H100s</title>
     <link rel="icon" href="../favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,6 +14,87 @@
       rel="stylesheet"
     >
     <link rel="stylesheet" href="../styles.css">
+  <!-- SEO:BEGIN -->
+    <meta name="author" content="Prateek Shukla">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <link rel="canonical" href="https://cudacourseh100.github.io/pages/lesson-10.html">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="CUDA Programming for NVIDIA H100s">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Multi GPU Part 2 | Lesson 10">
+    <meta property="og:description" content="Slurm, PMIx, NCCL communicators, collectives, and data, tensor, pipeline, and expert parallel orchestration on H100 systems.">
+    <meta property="og:url" content="https://cudacourseh100.github.io/pages/lesson-10.html">
+    <meta property="og:image" content="https://cudacourseh100.github.io/social-card.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="CUDA Programming for NVIDIA H100s">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Multi GPU Part 2 | Lesson 10">
+    <meta name="twitter:description" content="Slurm, PMIx, NCCL communicators, collectives, and data, tensor, pipeline, and expert parallel orchestration on H100 systems.">
+    <meta name="twitter:image" content="https://cudacourseh100.github.io/social-card.png">
+    <meta name="twitter:image:alt" content="CUDA Programming for NVIDIA H100s">
+    <meta property="article:author" content="Prateek Shukla">
+    <meta property="article:section" content="Distributed Orchestration">
+    <meta property="article:tag" content="Slurm">
+    <meta property="article:tag" content="PMIx">
+    <meta property="article:tag" content="NCCL">
+    <meta property="article:tag" content="collectives">
+    <meta property="article:tag" content="distributed orchestration">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "TechArticle",
+          "@id": "https://cudacourseh100.github.io/pages/lesson-10.html#article",
+          "url": "https://cudacourseh100.github.io/pages/lesson-10.html",
+          "headline": "Multi GPU Part 2",
+          "name": "Multi GPU Part 2",
+          "description": "Slurm, PMIx, NCCL communicators, collectives, and data, tensor, pipeline, and expert parallel orchestration on H100 systems.",
+          "inLanguage": "en",
+          "author": {
+            "@type": "Person",
+            "@id": "https://cudacourseh100.github.io/#person",
+            "name": "Prateek Shukla",
+            "url": "https://cudacourseh100.github.io/"
+          },
+          "mainEntityOfPage": "https://cudacourseh100.github.io/pages/lesson-10.html",
+          "articleSection": "Distributed Orchestration",
+          "about": [
+            "Slurm",
+            "PMIx",
+            "NCCL",
+            "collectives",
+            "distributed orchestration"
+          ],
+          "isPartOf": {
+            "@type": "Course",
+            "name": "CUDA Programming for NVIDIA H100s",
+            "url": "https://cudacourseh100.github.io/"
+          }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://cudacourseh100.github.io/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Multi GPU Part 2",
+              "item": "https://cudacourseh100.github.io/pages/lesson-10.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+    <!-- SEO:END -->
   </head>
   <body class="lesson-view lesson-view-orchestration">
     <header class="site-header">

@@ -6,21 +6,155 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
 const outDir = path.join(rootDir, "docs");
 
-const rootFiles = ["index.html", "slides.html", "styles.css", "script.js", "favicon.svg"];
+const site = {
+  name: "CUDA Programming for NVIDIA H100s",
+  author: "Prateek Shukla",
+  url: "https://cudacourseh100.github.io/",
+  description:
+    "Advanced CUDA course on NVIDIA Hopper and H100 by Prateek Shukla, covering TMA, cuTensorMap, cp.async.bulk, mbarrier, WGMMA, kernel design, and multi-GPU orchestration.",
+  socialImagePath: "/social-card.png",
+};
 
-const pageFiles = [
-  "pages/lesson-1.html",
-  "pages/lesson-2.html",
-  "pages/lesson-3.html",
-  "pages/lesson-4.html",
-  "pages/lesson-5.html",
-  "pages/lesson-6.html",
-  "pages/lesson-7.html",
-  "pages/lesson-8.html",
-  "pages/lesson-8.1.html",
-  "pages/lesson-9.html",
-  "pages/lesson-10.html",
+const courseTopics = [
+  "Hopper architecture",
+  "asynchronous execution",
+  "thread block clusters",
+  "distributed shared memory",
+  "mbarrier",
+  "cuTensorMap",
+  "cp.async.bulk",
+  "WGMMA",
+  "warp-specialized kernel design",
+  "multi-GPU orchestration",
 ];
+
+const lessonPages = [
+  {
+    file: "pages/lesson-1.html",
+    path: "/pages/lesson-1.html",
+    lessonNumber: 1,
+    shortTitle: "Introduction to H100s",
+    title: "H100 Architecture and Async Execution | Lesson 1 | CUDA Programming for NVIDIA H100s",
+    description:
+      "Learn the H100 architecture, memory hierarchy, Tensor Cores, and the asynchronous Hopper execution model that changes how modern CUDA kernels are designed.",
+    section: "Hopper Architecture",
+    tags: ["H100", "Hopper architecture", "memory hierarchy", "Tensor Cores", "asynchronous execution"],
+  },
+  {
+    file: "pages/lesson-2.html",
+    path: "/pages/lesson-2.html",
+    lessonNumber: 2,
+    shortTitle: "Clusters, Data Types, Inline PTX, and Pointers",
+    title: "Clusters, DSMEM, Inline PTX, and Pointers | Lesson 2 | CUDA Programming for NVIDIA H100s",
+    description:
+      "Thread block clusters, distributed shared memory, inline PTX, state spaces, and pointer conversion on Hopper.",
+    section: "Clusters and PTX",
+    tags: ["thread block clusters", "distributed shared memory", "inline PTX", "state spaces", "pointers"],
+  },
+  {
+    file: "pages/lesson-3.html",
+    path: "/pages/lesson-3.html",
+    lessonNumber: 3,
+    shortTitle: "Asynchronicity and Barriers",
+    title: "Asynchronicity, mbarrier, and Fences | Lesson 3 | CUDA Programming for NVIDIA H100s",
+    description:
+      "mbarrier, producer-consumer coordination, latency hiding, RAW and WAR hazards, fences, and correctness under overlap on Hopper.",
+    section: "Barriers and Synchronization",
+    tags: ["mbarrier", "barriers", "latency hiding", "RAW hazards", "proxy fences"],
+  },
+  {
+    file: "pages/lesson-4.html",
+    path: "/pages/lesson-4.html",
+    lessonNumber: 4,
+    shortTitle: "cuTensorMap",
+    title: "cuTensorMap and TMA Descriptors | Lesson 4 | CUDA Programming for NVIDIA H100s",
+    description:
+      "cuTensorMap descriptors for TMA on Hopper: tensor shapes, strides, swizzle, interleave, L2 promotion, and descriptor-driven async movement.",
+    section: "TMA and Descriptors",
+    tags: ["cuTensorMap", "TMA", "tensor descriptors", "swizzle", "L2 promotion"],
+  },
+  {
+    file: "pages/lesson-5.html",
+    path: "/pages/lesson-5.html",
+    lessonNumber: 5,
+    shortTitle: "cp.async.bulk",
+    title: "cp.async.bulk on Hopper | Lesson 5 | CUDA Programming for NVIDIA H100s",
+    description:
+      "Hopper cp.async.bulk instructions, barrier-based completion, structured and unstructured transfers, multicast, prefetch, and async reductions.",
+    section: "Async Bulk Copy",
+    tags: ["cp.async.bulk", "async copy", "barrier completion", "multicast", "prefetch"],
+  },
+  {
+    file: "pages/lesson-6.html",
+    path: "/pages/lesson-6.html",
+    lessonNumber: 6,
+    shortTitle: "WGMMA Part 1",
+    title: "WGMMA Part 1 | Lesson 6 | CUDA Programming for NVIDIA H100s",
+    description:
+      "WGMMA fundamentals on Hopper: warpgroups, wgmma.mma_async, ldmatrix, shared-memory descriptors, and tensor core dataflow.",
+    section: "WGMMA Fundamentals",
+    tags: ["WGMMA", "warpgroups", "wgmma.mma_async", "ldmatrix", "tensor cores"],
+  },
+  {
+    file: "pages/lesson-7.html",
+    path: "/pages/lesson-7.html",
+    lessonNumber: 7,
+    shortTitle: "WGMMA Part 2",
+    title: "WGMMA Part 2, FP8, and Sparse Kernels | Lesson 7 | CUDA Programming for NVIDIA H100s",
+    description:
+      "Group commit and wait, stmatrix, FP8 packing, K-major constraints, and sparse WGMMA for Hopper tensor core kernels.",
+    section: "Advanced WGMMA",
+    tags: ["WGMMA", "FP8", "stmatrix", "K-major", "sparse tensor cores"],
+  },
+  {
+    file: "pages/lesson-8.html",
+    path: "/pages/lesson-8.html",
+    lessonNumber: 8,
+    shortTitle: "Kernel Design",
+    title: "Kernel Design for Hopper | Lesson 8 | CUDA Programming for NVIDIA H100s",
+    description:
+      "Warp specialization, pipelining, circular buffers, persistent scheduling, and epilogues for compute-bound Hopper kernels.",
+    section: "Kernel Design",
+    tags: ["warp specialization", "kernel design", "persistent scheduling", "circular buffering", "epilogues"],
+  },
+  {
+    file: "pages/lesson-8.1.html",
+    path: "/pages/lesson-8.1.html",
+    lessonNumber: "8.1",
+    shortTitle: "Stream-K",
+    title: "Stream-K Scheduling on Hopper | Lesson 8.1 | CUDA Programming for NVIDIA H100s",
+    description:
+      "Stream-K scheduling on Hopper: work decomposition, fixup, scheduler state, and utilization tradeoffs for GEMM kernels.",
+    section: "Stream-K Scheduling",
+    tags: ["Stream-K", "tile scheduling", "scheduler state", "fixup", "GEMM utilization"],
+  },
+  {
+    file: "pages/lesson-9.html",
+    path: "/pages/lesson-9.html",
+    lessonNumber: 9,
+    shortTitle: "Multi GPU Part 1",
+    title: "Multi-GPU Topology on H100 | Lesson 9 | CUDA Programming for NVIDIA H100s",
+    description:
+      "NVLink, NVSwitch, DGX H100 topology, peer-to-peer movement, and the interconnect constraints behind multi-GPU scaling.",
+    section: "Multi-GPU Topology",
+    tags: ["NVLink", "NVSwitch", "DGX H100", "peer-to-peer", "multi-GPU scaling"],
+  },
+  {
+    file: "pages/lesson-10.html",
+    path: "/pages/lesson-10.html",
+    lessonNumber: 10,
+    shortTitle: "Multi GPU Part 2",
+    title: "NCCL, PMIx, and Distributed Orchestration | Lesson 10 | CUDA Programming for NVIDIA H100s",
+    description:
+      "Slurm, PMIx, NCCL communicators, collectives, and data, tensor, pipeline, and expert parallel orchestration on H100 systems.",
+    section: "Distributed Orchestration",
+    tags: ["Slurm", "PMIx", "NCCL", "collectives", "distributed orchestration"],
+  },
+];
+
+const rootFiles = ["index.html", "slides.html", "styles.css", "script.js", "favicon.svg", "social-card.svg", "social-card.png"];
+
+const pageFiles = lessonPages.map(({ file }) => file);
 
 const slideFiles = [
   "0. CUDA Programming for NVIDIA H100 GPUs.pdf",
@@ -51,8 +185,62 @@ const codeFiles = [
   "fast.cu/examples/matmul/matmul_12.cuh",
 ];
 
+const pageSeo = new Map([
+  [
+    "index.html",
+    {
+      kind: "home",
+      path: "/",
+      title: "CUDA Programming for NVIDIA H100s | Hopper Course",
+      socialTitle: "CUDA Programming for NVIDIA H100s",
+      description: site.description,
+      openGraphType: "website",
+      tags: courseTopics,
+    },
+  ],
+  [
+    "slides.html",
+    {
+      kind: "collection",
+      path: "/slides.html",
+      title: "Course Slides | CUDA Programming for NVIDIA H100s",
+      socialTitle: "Course Slides | CUDA Programming for NVIDIA H100s",
+      description:
+        "Download the full slide decks for CUDA Programming for NVIDIA H100s, covering Hopper architecture, TMA, barriers, cp.async.bulk, WGMMA, kernel design, and multi-GPU systems.",
+      openGraphType: "website",
+      tags: ["course slides", "Hopper slides", "WGMMA", "TMA", "multi-GPU systems"],
+    },
+  ],
+  ...lessonPages.map((lesson) => [
+    lesson.file,
+    {
+      ...lesson,
+      kind: "lesson",
+      socialTitle: `${lesson.shortTitle} | Lesson ${lesson.lessonNumber}`,
+      openGraphType: "article",
+    },
+  ]),
+  [
+    "404.html",
+    {
+      kind: "error",
+      path: "/404.html",
+      title: "404 | CUDA Programming for NVIDIA H100s",
+      socialTitle: "Page not found | CUDA Programming for NVIDIA H100s",
+      description: "The page you requested could not be found on the CUDA Programming for NVIDIA H100s site.",
+      openGraphType: "website",
+      robots: "noindex, nofollow, noarchive",
+      tags: ["404"],
+    },
+  ],
+]);
+
 const localAttrPattern = /\b(?:href|src)="([^"]+)"/g;
 const idPattern = /\sid="([^"]+)"/g;
+const titlePattern = /<title>[\s\S]*?<\/title>/i;
+const descriptionPattern = /<meta\b[^>]*name="description"[^>]*content="[^"]*"[^>]*>\s*/i;
+const viewportPattern = /<meta\b[^>]*name="viewport"[^>]*>\s*/i;
+const seoBlockPattern = /\s*<!-- SEO:BEGIN -->[\s\S]*?<!-- SEO:END -->/g;
 
 async function ensureDir(targetPath) {
   await mkdir(path.dirname(targetPath), { recursive: true });
@@ -76,6 +264,299 @@ async function fileExists(targetPath) {
   } catch {
     return false;
   }
+}
+
+function absoluteUrl(sitePath = "/") {
+  const cleanPath = sitePath === "/" ? "" : sitePath.replace(/^\//, "");
+  return new URL(cleanPath, site.url).toString();
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function escapeXml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function stripSeoBlock(html) {
+  return html.replace(seoBlockPattern, "");
+}
+
+function setTitle(html, title) {
+  const titleTag = `    <title>${escapeHtml(title)}</title>`;
+  if (titlePattern.test(html)) {
+    return html.replace(titlePattern, titleTag);
+  }
+  return html.replace("</head>", `${titleTag}\n  </head>`);
+}
+
+function setDescription(html, description) {
+  const descriptionTag = `    <meta name="description" content="${escapeHtml(description)}">\n`;
+  if (descriptionPattern.test(html)) {
+    return html.replace(descriptionPattern, descriptionTag);
+  }
+  if (viewportPattern.test(html)) {
+    return html.replace(viewportPattern, (match) => `${match}${descriptionTag}`);
+  }
+  return html.replace("</head>", `${descriptionTag}  </head>`);
+}
+
+function buildBreadcrumbSchema(items) {
+  return {
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+}
+
+function buildStructuredData(meta) {
+  const homeUrl = absoluteUrl("/");
+  const pageUrl = absoluteUrl(meta.path);
+  const person = {
+    "@type": "Person",
+    "@id": `${homeUrl}#person`,
+    name: site.author,
+    url: homeUrl,
+  };
+
+  if (meta.kind === "home") {
+    return {
+      "@context": "https://schema.org",
+      "@graph": [
+        person,
+        {
+          "@type": "WebSite",
+          "@id": `${homeUrl}#website`,
+          url: homeUrl,
+          name: site.name,
+          description: site.description,
+          inLanguage: "en",
+          author: { "@id": `${homeUrl}#person` },
+        },
+        {
+          "@type": "Course",
+          "@id": `${homeUrl}#course`,
+          name: site.name,
+          description: site.description,
+          url: homeUrl,
+          provider: { "@id": `${homeUrl}#person` },
+          inLanguage: "en",
+          educationalLevel: "Advanced",
+          courseMode: "online",
+          teaches: courseTopics,
+        },
+        {
+          "@type": "ItemList",
+          "@id": `${homeUrl}#lessons`,
+          name: "Course lessons",
+          itemListElement: lessonPages.map((lesson, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            url: absoluteUrl(lesson.path),
+            name: lesson.shortTitle,
+          })),
+        },
+      ],
+    };
+  }
+
+  if (meta.kind === "collection") {
+    return {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "CollectionPage",
+          "@id": `${pageUrl}#page`,
+          url: pageUrl,
+          name: meta.title,
+          description: meta.description,
+          inLanguage: "en",
+          author: person,
+          about: meta.tags,
+          isPartOf: {
+            "@type": "WebSite",
+            name: site.name,
+            url: homeUrl,
+          },
+        },
+        buildBreadcrumbSchema([
+          { name: "Home", url: homeUrl },
+          { name: "Slides", url: pageUrl },
+        ]),
+      ],
+    };
+  }
+
+  if (meta.kind === "lesson") {
+    return {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "TechArticle",
+          "@id": `${pageUrl}#article`,
+          url: pageUrl,
+          headline: meta.shortTitle,
+          name: meta.shortTitle,
+          description: meta.description,
+          inLanguage: "en",
+          author: person,
+          mainEntityOfPage: pageUrl,
+          articleSection: meta.section,
+          about: meta.tags,
+          isPartOf: {
+            "@type": "Course",
+            name: site.name,
+            url: homeUrl,
+          },
+        },
+        buildBreadcrumbSchema([
+          { name: "Home", url: homeUrl },
+          { name: meta.shortTitle, url: pageUrl },
+        ]),
+      ],
+    };
+  }
+
+  return null;
+}
+
+function renderStructuredData(meta) {
+  const structuredData = buildStructuredData(meta);
+  if (!structuredData) {
+    return "";
+  }
+
+  const payload = JSON.stringify(structuredData, null, 2).replace(/</g, "\\u003c");
+  return [
+    '    <script type="application/ld+json">',
+    payload
+      .split("\n")
+      .map((line) => `    ${line}`)
+      .join("\n"),
+    "    </script>",
+  ].join("\n");
+}
+
+function renderSeoBlock(meta) {
+  const pageUrl = absoluteUrl(meta.path);
+  const socialImageUrl = absoluteUrl(site.socialImagePath);
+  const robots = meta.robots ?? "index, follow, max-image-preview:large";
+
+  const tags = [
+    '<!-- SEO:BEGIN -->',
+    `    <meta name="author" content="${escapeHtml(site.author)}">`,
+    `    <meta name="robots" content="${escapeHtml(robots)}">`,
+    `    <link rel="canonical" href="${escapeHtml(pageUrl)}">`,
+    '    <meta property="og:locale" content="en_US">',
+    `    <meta property="og:site_name" content="${escapeHtml(site.name)}">`,
+    `    <meta property="og:type" content="${escapeHtml(meta.openGraphType)}">`,
+    `    <meta property="og:title" content="${escapeHtml(meta.socialTitle ?? meta.title)}">`,
+    `    <meta property="og:description" content="${escapeHtml(meta.description)}">`,
+    `    <meta property="og:url" content="${escapeHtml(pageUrl)}">`,
+    `    <meta property="og:image" content="${escapeHtml(socialImageUrl)}">`,
+    '    <meta property="og:image:type" content="image/png">',
+    '    <meta property="og:image:width" content="1200">',
+    '    <meta property="og:image:height" content="630">',
+    `    <meta property="og:image:alt" content="${escapeHtml(site.name)}">`,
+    '    <meta name="twitter:card" content="summary_large_image">',
+    `    <meta name="twitter:title" content="${escapeHtml(meta.socialTitle ?? meta.title)}">`,
+    `    <meta name="twitter:description" content="${escapeHtml(meta.description)}">`,
+    `    <meta name="twitter:image" content="${escapeHtml(socialImageUrl)}">`,
+    `    <meta name="twitter:image:alt" content="${escapeHtml(site.name)}">`,
+  ];
+
+  if (meta.openGraphType === "article") {
+    tags.push(`    <meta property="article:author" content="${escapeHtml(site.author)}">`);
+    if (meta.section) {
+      tags.push(`    <meta property="article:section" content="${escapeHtml(meta.section)}">`);
+    }
+    for (const tag of meta.tags ?? []) {
+      tags.push(`    <meta property="article:tag" content="${escapeHtml(tag)}">`);
+    }
+  }
+
+  const structuredData = renderStructuredData(meta);
+  if (structuredData) {
+    tags.push(structuredData);
+  }
+
+  tags.push("    <!-- SEO:END -->");
+  return tags.join("\n");
+}
+
+function applySeo(html, meta) {
+  let nextHtml = stripSeoBlock(html);
+  nextHtml = setTitle(nextHtml, meta.title);
+  nextHtml = setDescription(nextHtml, meta.description);
+  return nextHtml.replace("</head>", `${renderSeoBlock(meta)}\n  </head>`);
+}
+
+async function optimizeHtml(relativeHtmlPath, htmlOverride) {
+  const meta = pageSeo.get(relativeHtmlPath);
+  if (!meta) {
+    return;
+  }
+
+  const htmlPath = path.join(outDir, relativeHtmlPath);
+  const html = htmlOverride ?? (await readFile(htmlPath, "utf8"));
+  const optimizedHtml = applySeo(html, meta);
+  await writeFile(htmlPath, optimizedHtml);
+}
+
+async function generateSitemap() {
+  const entries = [];
+
+  for (const [relativePath, meta] of pageSeo.entries()) {
+    if (meta.kind === "error") {
+      continue;
+    }
+
+    const sourcePath = path.join(rootDir, relativePath);
+    const stats = await stat(sourcePath).catch(() => null);
+    const lastmod = (stats?.mtime ?? new Date()).toISOString().slice(0, 10);
+
+    entries.push({
+      url: absoluteUrl(meta.path),
+      lastmod,
+    });
+  }
+
+  const sitemap = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ...entries.map(
+      (entry) => [
+        "  <url>",
+        `    <loc>${escapeXml(entry.url)}</loc>`,
+        `    <lastmod>${entry.lastmod}</lastmod>`,
+        "  </url>",
+      ].join("\n")
+    ),
+    "</urlset>",
+    "",
+  ].join("\n");
+
+  await writeFile(path.join(outDir, "sitemap.xml"), sitemap);
+}
+
+async function generateRobots() {
+  const robots = ["User-agent: *", "Allow: /", "", `Sitemap: ${absoluteUrl("/sitemap.xml")}`, ""].join("\n");
+  await writeFile(path.join(outDir, "robots.txt"), robots);
 }
 
 async function validateHtml(relativeHtmlPath) {
@@ -108,7 +589,6 @@ async function validateHtml(relativeHtmlPath) {
     const targetPath = path.resolve(path.dirname(htmlPath), cleanValue);
 
     if (!(await fileExists(targetPath))) {
-      // Slide PDFs and code files may be absent in CI; warn instead of fail
       if (cleanValue.endsWith(".pdf") || cleanValue.startsWith("files/") || cleanValue.startsWith("../files/")) {
         console.warn(`  Warning: optional asset missing from ${relativeHtmlPath}: ${cleanValue}`);
       } else {
@@ -142,11 +622,20 @@ async function build() {
     await copyRelative(path.join("files", file), undefined, { optional: true });
   }
 
-  const indexHtml = await readFile(path.join(outDir, "index.html"), "utf8");
-  await writeFile(path.join(outDir, "404.html"), indexHtml);
+  const htmlFilesToOptimize = ["index.html", "slides.html", ...pageFiles];
+
+  for (const htmlFile of htmlFilesToOptimize) {
+    await optimizeHtml(htmlFile);
+  }
+
+  const rawIndexHtml = await readFile(path.join(rootDir, "index.html"), "utf8");
+  await optimizeHtml("404.html", rawIndexHtml);
+
+  await generateRobots();
+  await generateSitemap();
   await writeFile(path.join(outDir, ".nojekyll"), "");
 
-  const htmlFilesToValidate = ["index.html", "slides.html", ...pageFiles];
+  const htmlFilesToValidate = [...htmlFilesToOptimize, "404.html"];
 
   for (const htmlFile of htmlFilesToValidate) {
     await validateHtml(htmlFile);

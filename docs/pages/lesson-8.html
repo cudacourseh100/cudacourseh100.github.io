@@ -3,12 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta
-      name="description"
-      content="Lesson 8 of CUDA Programming for NVIDIA H100s: arithmetic intensity, warp specialization, circular buffering, cooperative and ping-pong pipelines, persistent scheduling, Stream-K, clusters, and epilogue design."
-    >
-    <meta name="theme-color" content="#08111d">
-    <title>Lesson 8 | Kernel Design</title>
+        <meta name="description" content="Warp specialization, pipelining, circular buffers, persistent scheduling, and epilogues for compute-bound Hopper kernels.">
+<meta name="theme-color" content="#08111d">
+        <title>Kernel Design for Hopper | Lesson 8 | CUDA Programming for NVIDIA H100s</title>
     <link rel="icon" href="../favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,6 +14,87 @@
       rel="stylesheet"
     >
     <link rel="stylesheet" href="../styles.css">
+  <!-- SEO:BEGIN -->
+    <meta name="author" content="Prateek Shukla">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <link rel="canonical" href="https://cudacourseh100.github.io/pages/lesson-8.html">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="CUDA Programming for NVIDIA H100s">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Kernel Design | Lesson 8">
+    <meta property="og:description" content="Warp specialization, pipelining, circular buffers, persistent scheduling, and epilogues for compute-bound Hopper kernels.">
+    <meta property="og:url" content="https://cudacourseh100.github.io/pages/lesson-8.html">
+    <meta property="og:image" content="https://cudacourseh100.github.io/social-card.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="CUDA Programming for NVIDIA H100s">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Kernel Design | Lesson 8">
+    <meta name="twitter:description" content="Warp specialization, pipelining, circular buffers, persistent scheduling, and epilogues for compute-bound Hopper kernels.">
+    <meta name="twitter:image" content="https://cudacourseh100.github.io/social-card.png">
+    <meta name="twitter:image:alt" content="CUDA Programming for NVIDIA H100s">
+    <meta property="article:author" content="Prateek Shukla">
+    <meta property="article:section" content="Kernel Design">
+    <meta property="article:tag" content="warp specialization">
+    <meta property="article:tag" content="kernel design">
+    <meta property="article:tag" content="persistent scheduling">
+    <meta property="article:tag" content="circular buffering">
+    <meta property="article:tag" content="epilogues">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "TechArticle",
+          "@id": "https://cudacourseh100.github.io/pages/lesson-8.html#article",
+          "url": "https://cudacourseh100.github.io/pages/lesson-8.html",
+          "headline": "Kernel Design",
+          "name": "Kernel Design",
+          "description": "Warp specialization, pipelining, circular buffers, persistent scheduling, and epilogues for compute-bound Hopper kernels.",
+          "inLanguage": "en",
+          "author": {
+            "@type": "Person",
+            "@id": "https://cudacourseh100.github.io/#person",
+            "name": "Prateek Shukla",
+            "url": "https://cudacourseh100.github.io/"
+          },
+          "mainEntityOfPage": "https://cudacourseh100.github.io/pages/lesson-8.html",
+          "articleSection": "Kernel Design",
+          "about": [
+            "warp specialization",
+            "kernel design",
+            "persistent scheduling",
+            "circular buffering",
+            "epilogues"
+          ],
+          "isPartOf": {
+            "@type": "Course",
+            "name": "CUDA Programming for NVIDIA H100s",
+            "url": "https://cudacourseh100.github.io/"
+          }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://cudacourseh100.github.io/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Kernel Design",
+              "item": "https://cudacourseh100.github.io/pages/lesson-8.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+    <!-- SEO:END -->
   </head>
   <body class="lesson-view lesson-view-kernel-design">
     <header class="site-header">

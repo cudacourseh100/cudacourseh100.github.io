@@ -3,12 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta
-      name="description"
-      content="Lesson 7 of CUDA Programming for NVIDIA H100s: WGMMA commit and wait groups, wgmma.fence, stmatrix, FP8 scaling and packing, K-major constraints, and sparse WGMMA metadata."
-    >
-    <meta name="theme-color" content="#08111d">
-    <title>Lesson 7 | WGMMA Part 2</title>
+        <meta name="description" content="Group commit and wait, stmatrix, FP8 packing, K-major constraints, and sparse WGMMA for Hopper tensor core kernels.">
+<meta name="theme-color" content="#08111d">
+        <title>WGMMA Part 2, FP8, and Sparse Kernels | Lesson 7 | CUDA Programming for NVIDIA H100s</title>
     <link rel="icon" href="../favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,6 +14,87 @@
       rel="stylesheet"
     >
     <link rel="stylesheet" href="../styles.css">
+  <!-- SEO:BEGIN -->
+    <meta name="author" content="Prateek Shukla">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <link rel="canonical" href="https://cudacourseh100.github.io/pages/lesson-7.html">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="CUDA Programming for NVIDIA H100s">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="WGMMA Part 2 | Lesson 7">
+    <meta property="og:description" content="Group commit and wait, stmatrix, FP8 packing, K-major constraints, and sparse WGMMA for Hopper tensor core kernels.">
+    <meta property="og:url" content="https://cudacourseh100.github.io/pages/lesson-7.html">
+    <meta property="og:image" content="https://cudacourseh100.github.io/social-card.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="CUDA Programming for NVIDIA H100s">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="WGMMA Part 2 | Lesson 7">
+    <meta name="twitter:description" content="Group commit and wait, stmatrix, FP8 packing, K-major constraints, and sparse WGMMA for Hopper tensor core kernels.">
+    <meta name="twitter:image" content="https://cudacourseh100.github.io/social-card.png">
+    <meta name="twitter:image:alt" content="CUDA Programming for NVIDIA H100s">
+    <meta property="article:author" content="Prateek Shukla">
+    <meta property="article:section" content="Advanced WGMMA">
+    <meta property="article:tag" content="WGMMA">
+    <meta property="article:tag" content="FP8">
+    <meta property="article:tag" content="stmatrix">
+    <meta property="article:tag" content="K-major">
+    <meta property="article:tag" content="sparse tensor cores">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "TechArticle",
+          "@id": "https://cudacourseh100.github.io/pages/lesson-7.html#article",
+          "url": "https://cudacourseh100.github.io/pages/lesson-7.html",
+          "headline": "WGMMA Part 2",
+          "name": "WGMMA Part 2",
+          "description": "Group commit and wait, stmatrix, FP8 packing, K-major constraints, and sparse WGMMA for Hopper tensor core kernels.",
+          "inLanguage": "en",
+          "author": {
+            "@type": "Person",
+            "@id": "https://cudacourseh100.github.io/#person",
+            "name": "Prateek Shukla",
+            "url": "https://cudacourseh100.github.io/"
+          },
+          "mainEntityOfPage": "https://cudacourseh100.github.io/pages/lesson-7.html",
+          "articleSection": "Advanced WGMMA",
+          "about": [
+            "WGMMA",
+            "FP8",
+            "stmatrix",
+            "K-major",
+            "sparse tensor cores"
+          ],
+          "isPartOf": {
+            "@type": "Course",
+            "name": "CUDA Programming for NVIDIA H100s",
+            "url": "https://cudacourseh100.github.io/"
+          }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://cudacourseh100.github.io/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "WGMMA Part 2",
+              "item": "https://cudacourseh100.github.io/pages/lesson-7.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+    <!-- SEO:END -->
   </head>
   <body class="lesson-view lesson-view-wgmma-2">
     <header class="site-header">

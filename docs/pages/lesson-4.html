@@ -3,12 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta
-      name="description"
-      content="Lesson 4 of CUDA Programming for NVIDIA H100s: cuTensorMap, Hopper TMA, descriptor fields, swizzling, interleaving, L2 promotion, and out-of-bounds fill."
-    >
-    <meta name="theme-color" content="#08111d">
-    <title>Lesson 4 | cuTensorMap</title>
+        <meta name="description" content="cuTensorMap descriptors for TMA on Hopper: tensor shapes, strides, swizzle, interleave, L2 promotion, and descriptor-driven async movement.">
+<meta name="theme-color" content="#08111d">
+        <title>cuTensorMap and TMA Descriptors | Lesson 4 | CUDA Programming for NVIDIA H100s</title>
     <link rel="icon" href="../favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,6 +14,87 @@
       rel="stylesheet"
     >
     <link rel="stylesheet" href="../styles.css">
+  <!-- SEO:BEGIN -->
+    <meta name="author" content="Prateek Shukla">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <link rel="canonical" href="https://cudacourseh100.github.io/pages/lesson-4.html">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="CUDA Programming for NVIDIA H100s">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="cuTensorMap | Lesson 4">
+    <meta property="og:description" content="cuTensorMap descriptors for TMA on Hopper: tensor shapes, strides, swizzle, interleave, L2 promotion, and descriptor-driven async movement.">
+    <meta property="og:url" content="https://cudacourseh100.github.io/pages/lesson-4.html">
+    <meta property="og:image" content="https://cudacourseh100.github.io/social-card.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="CUDA Programming for NVIDIA H100s">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="cuTensorMap | Lesson 4">
+    <meta name="twitter:description" content="cuTensorMap descriptors for TMA on Hopper: tensor shapes, strides, swizzle, interleave, L2 promotion, and descriptor-driven async movement.">
+    <meta name="twitter:image" content="https://cudacourseh100.github.io/social-card.png">
+    <meta name="twitter:image:alt" content="CUDA Programming for NVIDIA H100s">
+    <meta property="article:author" content="Prateek Shukla">
+    <meta property="article:section" content="TMA and Descriptors">
+    <meta property="article:tag" content="cuTensorMap">
+    <meta property="article:tag" content="TMA">
+    <meta property="article:tag" content="tensor descriptors">
+    <meta property="article:tag" content="swizzle">
+    <meta property="article:tag" content="L2 promotion">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "TechArticle",
+          "@id": "https://cudacourseh100.github.io/pages/lesson-4.html#article",
+          "url": "https://cudacourseh100.github.io/pages/lesson-4.html",
+          "headline": "cuTensorMap",
+          "name": "cuTensorMap",
+          "description": "cuTensorMap descriptors for TMA on Hopper: tensor shapes, strides, swizzle, interleave, L2 promotion, and descriptor-driven async movement.",
+          "inLanguage": "en",
+          "author": {
+            "@type": "Person",
+            "@id": "https://cudacourseh100.github.io/#person",
+            "name": "Prateek Shukla",
+            "url": "https://cudacourseh100.github.io/"
+          },
+          "mainEntityOfPage": "https://cudacourseh100.github.io/pages/lesson-4.html",
+          "articleSection": "TMA and Descriptors",
+          "about": [
+            "cuTensorMap",
+            "TMA",
+            "tensor descriptors",
+            "swizzle",
+            "L2 promotion"
+          ],
+          "isPartOf": {
+            "@type": "Course",
+            "name": "CUDA Programming for NVIDIA H100s",
+            "url": "https://cudacourseh100.github.io/"
+          }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://cudacourseh100.github.io/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "cuTensorMap",
+              "item": "https://cudacourseh100.github.io/pages/lesson-4.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+    <!-- SEO:END -->
   </head>
   <body class="lesson-view lesson-view-tma">
     <header class="site-header">

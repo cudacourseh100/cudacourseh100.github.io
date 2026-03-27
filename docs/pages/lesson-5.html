@@ -3,12 +3,9 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta
-      name="description"
-      content="Lesson 5 of CUDA Programming for NVIDIA H100s: cp.async.bulk, tensor copies, TMA-backed movement, multicast, prefetch, cache policy, and completion semantics."
-    >
-    <meta name="theme-color" content="#08111d">
-    <title>Lesson 5 | cp.async.bulk</title>
+        <meta name="description" content="Hopper cp.async.bulk instructions, barrier-based completion, structured and unstructured transfers, multicast, prefetch, and async reductions.">
+<meta name="theme-color" content="#08111d">
+        <title>cp.async.bulk on Hopper | Lesson 5 | CUDA Programming for NVIDIA H100s</title>
     <link rel="icon" href="../favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,6 +14,87 @@
       rel="stylesheet"
     >
     <link rel="stylesheet" href="../styles.css">
+  <!-- SEO:BEGIN -->
+    <meta name="author" content="Prateek Shukla">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <link rel="canonical" href="https://cudacourseh100.github.io/pages/lesson-5.html">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="CUDA Programming for NVIDIA H100s">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="cp.async.bulk | Lesson 5">
+    <meta property="og:description" content="Hopper cp.async.bulk instructions, barrier-based completion, structured and unstructured transfers, multicast, prefetch, and async reductions.">
+    <meta property="og:url" content="https://cudacourseh100.github.io/pages/lesson-5.html">
+    <meta property="og:image" content="https://cudacourseh100.github.io/social-card.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="CUDA Programming for NVIDIA H100s">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="cp.async.bulk | Lesson 5">
+    <meta name="twitter:description" content="Hopper cp.async.bulk instructions, barrier-based completion, structured and unstructured transfers, multicast, prefetch, and async reductions.">
+    <meta name="twitter:image" content="https://cudacourseh100.github.io/social-card.png">
+    <meta name="twitter:image:alt" content="CUDA Programming for NVIDIA H100s">
+    <meta property="article:author" content="Prateek Shukla">
+    <meta property="article:section" content="Async Bulk Copy">
+    <meta property="article:tag" content="cp.async.bulk">
+    <meta property="article:tag" content="async copy">
+    <meta property="article:tag" content="barrier completion">
+    <meta property="article:tag" content="multicast">
+    <meta property="article:tag" content="prefetch">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "TechArticle",
+          "@id": "https://cudacourseh100.github.io/pages/lesson-5.html#article",
+          "url": "https://cudacourseh100.github.io/pages/lesson-5.html",
+          "headline": "cp.async.bulk",
+          "name": "cp.async.bulk",
+          "description": "Hopper cp.async.bulk instructions, barrier-based completion, structured and unstructured transfers, multicast, prefetch, and async reductions.",
+          "inLanguage": "en",
+          "author": {
+            "@type": "Person",
+            "@id": "https://cudacourseh100.github.io/#person",
+            "name": "Prateek Shukla",
+            "url": "https://cudacourseh100.github.io/"
+          },
+          "mainEntityOfPage": "https://cudacourseh100.github.io/pages/lesson-5.html",
+          "articleSection": "Async Bulk Copy",
+          "about": [
+            "cp.async.bulk",
+            "async copy",
+            "barrier completion",
+            "multicast",
+            "prefetch"
+          ],
+          "isPartOf": {
+            "@type": "Course",
+            "name": "CUDA Programming for NVIDIA H100s",
+            "url": "https://cudacourseh100.github.io/"
+          }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://cudacourseh100.github.io/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "cp.async.bulk",
+              "item": "https://cudacourseh100.github.io/pages/lesson-5.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+    <!-- SEO:END -->
   </head>
   <body class="lesson-view lesson-view-copybulk">
     <header class="site-header">
