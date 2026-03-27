@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">CUDA Programming for NVIDIA H100s</title>
+  <desc id="desc">A chip-inspired H100 favicon with signal lanes.</desc>
+  <defs>
+    <linearGradient id="bg" x1="8%" y1="8%" x2="92%" y2="92%">
+      <stop offset="0%" stop-color="#09131f"/>
+      <stop offset="100%" stop-color="#10253a"/>
+    </linearGradient>
+    <linearGradient id="trace" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#79d3ff"/>
+      <stop offset="50%" stop-color="#a6ff6b"/>
+      <stop offset="100%" stop-color="#ff9b61"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <rect x="22" y="22" width="84" height="84" rx="18" fill="none" stroke="rgba(244,241,235,0.18)" stroke-width="2"/>
+  <path d="M14 38h18m64 0h18M14 64h18m64 0h18M14 90h18m64 0h18M38 14v18m0 64v18M64 14v18m0 64v18M90 14v18m0 64v18" stroke="rgba(244,241,235,0.2)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M34 78V48h12l10 16 10-16h12v30h-8V61l-12 18-12-18v17z" fill="#f4f1eb"/>
+  <path d="M28 100C44 100 47 90 58 90s14 10 30 10" fill="none" stroke="url(#trace)" stroke-width="6" stroke-linecap="round"/>
+</svg>

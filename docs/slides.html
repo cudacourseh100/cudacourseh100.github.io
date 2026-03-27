@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="All slide decks for CUDA Programming for NVIDIA H100s by Prateek Shukla."
+    >
+    <meta name="theme-color" content="#08111d">
+    <title>Course Slides | CUDA Programming for NVIDIA H100s</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Syne:wght@500;700;800&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body class="slides-view">
+    <header class="site-header">
+      <a class="header-mark" href="index.html" aria-label="CUDA Programming for NVIDIA H100s">
+        <span>Prateek Shukla</span>
+        <span>CUDA Programming for NVIDIA H100s</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="index.html#top">Home</a>
+        <a href="index.html#lessons">Lessons</a>
+        <a href="#all-slides">All Slides</a>
+        <a href="index.html#visuals">Visuals</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="slides-hero">
+        <div class="section-shell">
+          <p class="hero-credit">Course Material</p>
+          <h1 class="slides-title">All Slide Decks</h1>
+          <p class="slides-summary">
+            Every lesson deck in one place, from the Hopper introduction through barriers, TMA, WGMMA, kernel design,
+            and multi-GPU orchestration.
+          </p>
+        </div>
+      </section>
+
+      <section class="slides-collection" id="all-slides" data-reveal>
+        <div class="section-shell">
+          <div class="section-head section-head-dark">
+            <p class="section-kicker">Course Decks</p>
+            <h2>The complete slide sequence for the course.</h2>
+            <p>
+              Use this page when you want the whole course deck collection rather than a single entry lesson.
+            </p>
+          </div>
+
+          <ol class="lesson-list">
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/0. CUDA Programming for NVIDIA H100 GPUs.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">01</span>
+                <h3>Introduction to H100s</h3>
+                <p>Architecture, memory hierarchy, execution hierarchy, and the shift toward asynchronous thinking.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/2. Clusters, Data types, inline PTX, State Spaces.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">02</span>
+                <h3>Clusters, Data Types, Inline PTX, Pointers</h3>
+                <p>Thread block clusters, distributed shared memory, state spaces, and address-space conversion.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/3. Asynchronicity and barriers.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">03</span>
+                <h3>Asynchronicity and Barriers</h3>
+                <p>Latency hiding, <code>mbarrier</code>, producer-consumer hazards, wait patterns, and correctness under overlap.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/4. cuTensorMap.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">04</span>
+                <h3>cuTensorMap</h3>
+                <p>TMA descriptors, tensor shapes and strides, swizzling, interleaving, and descriptor-driven transfers.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/5. cp.async.bulk.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">05</span>
+                <h3><code>cp.async.bulk</code></h3>
+                <p>Bulk async copies, multicast, prefetching, reductions, and barrier-based completion semantics.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/6. WGMMA-1.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">06</span>
+                <h3>WGMMA Part 1</h3>
+                <p>Warpgroups, <code>wgmma.mma_async</code>, register and shared-memory sourcing, and tensor-core dataflow.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/7. Wgmma part 2.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">07</span>
+                <h3>WGMMA Part 2</h3>
+                <p>Commit and wait groups, FP8 behavior, <code>stmatrix</code>, packing, and sparse WGMMA constraints.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/8. Kernel Design.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">08</span>
+                <h3>Kernel Design</h3>
+                <p>Warp specialization, pipelining, circular buffering, persistent scheduling, Stream-K, and launch strategy.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/9. Multi GPU.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">09</span>
+                <h3>Multi GPU Part 1</h3>
+                <p>NVLink, NVSwitch, topology, bottlenecks, and why scaling changes how you reason about the machine.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/10. Multi GPU  Part 2.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">10</span>
+                <h3>Multi GPU Part 2</h3>
+                <p>Slurm, PMIx, NCCL communicators, collectives, and the orchestration behind large training systems.</p>
+              </a>
+            </li>
+          </ol>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>CUDA Programming for NVIDIA H100s</p>
+      <p>Prateek Shukla</p>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>

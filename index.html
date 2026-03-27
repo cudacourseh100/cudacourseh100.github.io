@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="CUDA Programming for NVIDIA H100s by Prateek Shukla. A premium technical course site built around Hopper's asynchronous execution model."
+    >
+    <meta name="theme-color" content="#08111d">
+    <title>CUDA Programming for NVIDIA H100s</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Syne:wght@500;700;800&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="header-mark" href="#top" aria-label="CUDA Programming for NVIDIA H100s">
+        <span>Prateek Shukla</span>
+        <span>CUDA Programming for NVIDIA H100s</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        <a href="#why">Why Hopper</a>
+        <a href="#lessons">Lessons</a>
+        <a href="#pipelines">Pipelines</a>
+        <a href="#visuals">Visuals</a>
+        <a href="#code">Code</a>
+        <a href="slides.html">Slides</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-backdrop" aria-hidden="true">
+          <svg class="hero-diagram" viewBox="0 0 1600 960" preserveAspectRatio="xMidYMid slice">
+            <defs>
+              <pattern id="hero-grid" width="64" height="64" patternUnits="userSpaceOnUse">
+                <path d="M 64 0 L 0 0 0 64" fill="none" stroke="rgba(129, 155, 183, 0.18)" stroke-width="1"/>
+              </pattern>
+              <linearGradient id="signal-line" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#79d3ff" stop-opacity="0"/>
+                <stop offset="35%" stop-color="#79d3ff" stop-opacity="0.85"/>
+                <stop offset="68%" stop-color="#a6ff6b" stop-opacity="0.9"/>
+                <stop offset="100%" stop-color="#ff9b61" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="module-fill" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0e1c2b" stop-opacity="0.96"/>
+                <stop offset="100%" stop-color="#08121d" stop-opacity="0.65"/>
+              </linearGradient>
+              <filter id="soft-glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="10" result="blur"/>
+                <feMerge>
+                  <feMergeNode in="blur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
+            </defs>
+
+            <rect x="0" y="0" width="1600" height="960" fill="url(#hero-grid)" opacity="0.52"/>
+
+            <g class="diagram-wash">
+              <ellipse cx="1140" cy="260" rx="420" ry="250" fill="#79d3ff" opacity="0.08"/>
+              <ellipse cx="1080" cy="680" rx="520" ry="220" fill="#a6ff6b" opacity="0.08"/>
+              <ellipse cx="280" cy="860" rx="360" ry="220" fill="#ff8f52" opacity="0.1"/>
+            </g>
+
+            <g class="diagram-lanes" filter="url(#soft-glow)">
+              <path class="flow-path flow-path-a" d="M 80 756 C 280 756, 430 690, 548 598 S 842 372, 1020 372 S 1360 430, 1530 296"/>
+              <path class="flow-path flow-path-b" d="M 110 668 C 270 668, 432 616, 582 518 S 886 286, 1088 286 S 1380 322, 1524 202"/>
+              <path class="flow-path flow-path-c" d="M 492 832 C 704 832, 856 742, 1006 596 S 1260 366, 1514 366"/>
+              <path class="flow-path flow-path-d" d="M 736 168 C 894 168, 1026 212, 1120 314 S 1280 558, 1516 558"/>
+            </g>
+
+            <g class="diagram-modules">
+              <g class="module memory-bank">
+                <rect x="74" y="610" width="356" height="226" rx="28"/>
+                <text x="116" y="682">HBM / GLOBAL MEMORY</text>
+                <text x="116" y="726">strides, tiles, bulk movement</text>
+                <path d="M 118 764 H 386" class="module-rule"/>
+                <path d="M 118 790 H 356" class="module-rule"/>
+                <path d="M 118 816 H 318" class="module-rule"/>
+              </g>
+
+              <g class="module tma-spine">
+                <rect x="520" y="180" width="174" height="568" rx="34"/>
+                <text x="564" y="270">TMA</text>
+                <text x="564" y="308">descriptor path</text>
+                <path d="M 570 356 V 654" class="module-column"/>
+                <circle cx="570" cy="410" r="10" class="module-node"/>
+                <circle cx="570" cy="508" r="10" class="module-node"/>
+                <circle cx="570" cy="606" r="10" class="module-node"/>
+                <text x="598" y="414">cuTensorMap</text>
+                <text x="598" y="512">cp.async.bulk</text>
+                <text x="598" y="610">barrier arrival</text>
+              </g>
+
+              <g class="module sync-rail">
+                <rect x="198" y="120" width="428" height="110" rx="22"/>
+                <text x="246" y="176">mbarrier / wait groups / fences</text>
+                <text x="246" y="208">correctness under overlap</text>
+              </g>
+
+              <g class="module smem-core">
+                <rect x="760" y="294" width="310" height="272" rx="34"/>
+                <text x="816" y="372">SHARED MEMORY TILE</text>
+                <text x="816" y="412">swizzles, layouts, circular staging</text>
+                <path d="M 820 454 H 1012" class="module-rule"/>
+                <path d="M 820 490 H 976" class="module-rule"/>
+                <path d="M 820 526 H 936" class="module-rule"/>
+              </g>
+
+              <g class="module tensor-array">
+                <rect x="1088" y="126" width="430" height="286" rx="40"/>
+                <text x="1146" y="210">WGMMA / TENSOR CORE ARRAY</text>
+                <text x="1146" y="250">warpgroup issue, commit, wait</text>
+                <g class="matrix-grid">
+                  <circle cx="1176" cy="306" r="8"/>
+                  <circle cx="1228" cy="306" r="8"/>
+                  <circle cx="1280" cy="306" r="8"/>
+                  <circle cx="1332" cy="306" r="8"/>
+                  <circle cx="1384" cy="306" r="8"/>
+                  <circle cx="1436" cy="306" r="8"/>
+                  <circle cx="1488" cy="306" r="8"/>
+                  <circle cx="1176" cy="350" r="8"/>
+                  <circle cx="1228" cy="350" r="8"/>
+                  <circle cx="1280" cy="350" r="8"/>
+                  <circle cx="1332" cy="350" r="8"/>
+                  <circle cx="1384" cy="350" r="8"/>
+                  <circle cx="1436" cy="350" r="8"/>
+                  <circle cx="1488" cy="350" r="8"/>
+                </g>
+              </g>
+
+              <g class="module cluster-fabric">
+                <rect x="1068" y="572" width="470" height="230" rx="36"/>
+                <text x="1132" y="648">CLUSTER FABRIC / MULTI-GPU</text>
+                <text x="1132" y="690">DSM, Stream-K, NVLink, NCCL, Slurm</text>
+                <path d="M 1134 736 H 1490" class="module-rule"/>
+                <path d="M 1134 764 H 1450" class="module-rule"/>
+              </g>
+            </g>
+
+            <g class="diagram-connectors">
+              <circle cx="430" cy="708" r="12"/>
+              <circle cx="694" cy="602" r="12"/>
+              <circle cx="1070" cy="364" r="12"/>
+              <circle cx="1088" cy="622" r="12"/>
+              <circle cx="1516" cy="558" r="12"/>
+            </g>
+          </svg>
+        </div>
+
+        <div class="hero-scrim" aria-hidden="true"></div>
+
+        <div class="hero-content section-shell">
+          <p class="hero-credit">A course by Prateek Shukla</p>
+          <h1 class="hero-title" id="hero-title">
+            <span>CUDA</span>
+            <span>Programming</span>
+            <span>for NVIDIA</span>
+            <span class="hero-title-emphasis">H100s</span>
+          </h1>
+          <p class="hero-summary">
+            Hopper taught as the asynchronous machine: <code>mbarrier</code>, <code>cp.async.bulk</code>, TMA,
+            WGMMA, warp-specialized kernels, and multi-GPU orchestration.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#lessons">Explore the 10 lessons</a>
+            <a
+              class="button button-secondary"
+              href="slides.html"
+            >
+              Browse all slides
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section class="statement" id="why" data-reveal>
+        <div class="section-shell">
+          <div class="section-head">
+            <p class="section-kicker">Why This Course Exists</p>
+            <h2>Hopper changed the programming model, not just the throughput number.</h2>
+            <p>
+              The course is built for engineers who want the real machine: asynchronous execution, descriptor-driven
+              movement, synchronization semantics, tensor-core dataflow, and the distributed systems context required at
+              H100 scale.
+            </p>
+          </div>
+
+          <div class="principles">
+            <article class="principle" data-reveal>
+              <p class="principle-index">01</p>
+              <div>
+                <h3>Asynchronous execution is the center of the story.</h3>
+                <p>
+                  Older CUDA instincts assume issue and completion are nearly one mental unit. Hopper makes overlap,
+                  wait logic, and producer-consumer coordination part of everyday kernel design.
+                </p>
+              </div>
+            </article>
+
+            <article class="principle" data-reveal>
+              <p class="principle-index">02</p>
+              <div>
+                <h3>Data movement is a first-class optimization surface.</h3>
+                <p>
+                  TMA descriptors, swizzles, layout choices, shared memory staging, and barrier-linked transfers matter
+                  as much as the math itself when you want tensor cores to stay fed.
+                </p>
+              </div>
+            </article>
+
+            <article class="principle" data-reveal>
+              <p class="principle-index">03</p>
+              <div>
+                <h3>Scale is part of the architecture, not an optional appendix.</h3>
+                <p>
+                  NVLink, Stream-K scheduling, NCCL setup, PMIx, and Slurm show up because real training systems do not
+                  stop at one GPU, and neither should the mental model.
+                </p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="syllabus" id="lessons" data-reveal>
+        <div class="section-shell">
+          <div class="section-head section-head-dark">
+            <p class="section-kicker">Course Structure</p>
+            <h2>Ten lessons, arranged as one climb into the asynchronous machine.</h2>
+            <p>
+              The sequence starts with architecture and state spaces, then moves through barriers, TMA, WGMMA,
+              compute-bound kernel design, and finally the distributed orchestration stack.
+            </p>
+          </div>
+
+          <ol class="lesson-list">
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/0. CUDA Programming for NVIDIA H100 GPUs.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">01</span>
+                <h3>Introduction to H100s</h3>
+                <p>Architecture, memory hierarchy, execution hierarchy, and the shift toward asynchronous thinking.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/2. Clusters, Data types, inline PTX, State Spaces.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">02</span>
+                <h3>Clusters, Data Types, Inline PTX, Pointers</h3>
+                <p>Thread block clusters, distributed shared memory, state spaces, and address-space conversion.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/3. Asynchronicity and barriers.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">03</span>
+                <h3>Asynchronicity and Barriers</h3>
+                <p>Latency hiding, <code>mbarrier</code>, producer-consumer hazards, wait patterns, and correctness under overlap.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/4. cuTensorMap.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">04</span>
+                <h3>cuTensorMap</h3>
+                <p>TMA descriptors, tensor shapes and strides, swizzling, interleaving, and descriptor-driven transfers.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/5. cp.async.bulk.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">05</span>
+                <h3><code>cp.async.bulk</code></h3>
+                <p>Bulk async copies, multicast, prefetching, reductions, and barrier-based completion semantics.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/6. WGMMA-1.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">06</span>
+                <h3>WGMMA Part 1</h3>
+                <p>Warpgroups, <code>wgmma.mma_async</code>, register and shared-memory sourcing, and tensor-core dataflow.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/7. Wgmma part 2.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">07</span>
+                <h3>WGMMA Part 2</h3>
+                <p>Commit and wait groups, FP8 behavior, <code>stmatrix</code>, packing, and sparse WGMMA constraints.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/8. Kernel Design.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">08</span>
+                <h3>Kernel Design</h3>
+                <p>Warp specialization, pipelining, circular buffering, persistent scheduling, Stream-K, and launch strategy.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/9. Multi GPU.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">09</span>
+                <h3>Multi GPU Part 1</h3>
+                <p>NVLink, NVSwitch, topology, bottlenecks, and why scaling changes how you reason about the machine.</p>
+              </a>
+            </li>
+            <li class="lesson-item" data-reveal>
+              <a class="lesson-link" href="H100-Course/slides/10. Multi GPU  Part 2.pdf" target="_blank" rel="noreferrer">
+                <span class="lesson-number">10</span>
+                <h3>Multi GPU Part 2</h3>
+                <p>Slurm, PMIx, NCCL communicators, collectives, and the orchestration behind large training systems.</p>
+              </a>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="pipeline-reality" id="pipelines" data-reveal>
+        <div class="section-shell">
+          <div class="section-head">
+            <p class="section-kicker">Code Reality</p>
+            <h2>The course keeps returning to pipelines because the files do.</h2>
+            <p>
+              A big part of this material is not slides in isolation. It is reading how descriptors, barriers,
+              warpgroup math, scheduling, and measured kernels become concrete structures in the code. Pick a thread
+              below and watch the pipeline take shape in the actual files.
+            </p>
+          </div>
+
+          <div class="pipeline-app" data-pipeline-root data-reveal>
+            <div class="pipeline-selector" data-pipeline-selector role="tablist" aria-label="Pipeline concepts"></div>
+            <div class="pipeline-stage-strip" data-pipeline-stages aria-live="polite"></div>
+
+            <div class="pipeline-panel">
+              <div class="pipeline-copy">
+                <p class="pipeline-filepath" data-pipeline-path></p>
+                <h3 class="pipeline-title" data-pipeline-title></h3>
+                <p class="pipeline-description" data-pipeline-description></p>
+                <ul class="pipeline-points" data-pipeline-points></ul>
+                <div class="pipeline-actions">
+                  <a class="button button-primary" data-pipeline-link target="_blank" rel="noreferrer">Open Full File</a>
+                  <span class="pipeline-lines" data-pipeline-lines></span>
+                </div>
+              </div>
+
+              <div class="pipeline-code-window">
+                <div class="pipeline-code-meta">
+                  <span data-pipeline-filetag></span>
+                  <span data-pipeline-linetag></span>
+                </div>
+                <pre class="pipeline-code" aria-live="polite"><code data-pipeline-code></code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="code-anchors" id="code" data-reveal>
+        <div class="section-shell">
+          <div class="section-head">
+            <p class="section-kicker">Code Anchors</p>
+            <h2>The material stays pinned to real kernel files, not abstract slogans.</h2>
+            <p>
+              These references are already in the repo. They are where the course connects architecture diagrams to
+              scheduler logic, shared-memory layout, descriptor construction, and measured kernels.
+            </p>
+          </div>
+
+          <div class="anchor-list">
+            <article class="anchor-row" data-reveal>
+              <a class="anchor-file" href="files/sm90_gemm_tma_warpspecialized_pingpong.hpp" target="_blank" rel="noreferrer">
+                sm90_gemm_tma_warpspecialized_pingpong.hpp
+              </a>
+              <p>
+                A CUTLASS SM90 kernel with ping-pong staging, warp-specialized producer and math groups, ordered
+                sequence barriers, and scheduler-linked shared storage.
+              </p>
+            </article>
+
+            <article class="anchor-row" data-reveal>
+              <a class="anchor-file" href="files/sm90_tile_scheduler_stream_k.hpp" target="_blank" rel="noreferrer">
+                sm90_tile_scheduler_stream_k.hpp
+              </a>
+              <p>
+                Persistent Stream-K decomposition, work-tile bookkeeping, reduction units, and the scheduler decisions
+                that decide how work moves across the machine.
+              </p>
+            </article>
+
+            <article class="anchor-row" data-reveal>
+              <a class="anchor-file" href="files/fast.cu/examples/matmul/matmul_12.cuh" target="_blank" rel="noreferrer">
+                fast.cu/examples/matmul/matmul_12.cuh
+              </a>
+              <p>
+                Shared-memory matrix descriptors, inline PTX, explicit warpgroup fences, and direct
+                <code>wgmma.mma_async</code> usage for bf16 GEMM kernels.
+              </p>
+            </article>
+
+            <article class="anchor-row" data-reveal>
+              <a class="anchor-file" href="files/fast.cu/README.md" target="_blank" rel="noreferrer">
+                fast.cu/README.md
+              </a>
+              <p>
+                From-scratch kernels with measured bf16 matmul results, including runs that outperform cuBLAS on
+                selected H100 matrix sizes.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="visual-labs" id="visuals" data-reveal>
+        <div class="section-shell">
+          <div class="section-head section-head-dark">
+            <p class="section-kicker">Interactive Visualizations</p>
+            <h2>Small live glances into the teaching tools behind the course.</h2>
+            <p>
+              These companion visualizations are already live on GitHub Pages. Each preview below is a direct window
+              into the actual interactive, with a full-view link when you want to step into it properly.
+            </p>
+          </div>
+
+          <div class="lab-list">
+            <article class="lab-item" data-reveal>
+              <div class="lab-copy">
+                <p class="lab-index">01</p>
+                <h3>Rasterization + Swizzle Visualizer</h3>
+                <p>
+                  Tile traversal, padded grids, swizzled cluster IDs, and persistent block mapping from
+                  <code>rasterization.cu</code>.
+                </p>
+                <a class="button button-secondary" href="https://cudacourseh100.github.io/raster/" target="_blank" rel="noreferrer">
+                  Open Raster Visualizer
+                </a>
+              </div>
+              <div class="lab-preview-shell">
+                <div class="lab-preview-meta">
+                  <span>Live Preview</span>
+                  <span>Tile Scheduling Studio</span>
+                </div>
+                <iframe
+                  class="lab-preview"
+                  title="Rasterization and swizzle visualizer preview"
+                  src="https://cudacourseh100.github.io/raster/"
+                  loading="lazy"
+                  referrerpolicy="strict-origin-when-cross-origin"
+                ></iframe>
+              </div>
+            </article>
+
+            <article class="lab-item" data-reveal>
+              <div class="lab-copy">
+                <p class="lab-index">02</p>
+                <h3>H100 GPU Architecture</h3>
+                <p>
+                  A dedicated architecture visualization for reading Hopper as a machine: major structures, hierarchy,
+                  and the chip-level surfaces the course keeps referring back to.
+                </p>
+                <a class="button button-secondary" href="https://cudacourseh100.github.io/h100visu/" target="_blank" rel="noreferrer">
+                  Open H100 Visualizer
+                </a>
+              </div>
+              <div class="lab-preview-shell">
+                <div class="lab-preview-meta">
+                  <span>Live Preview</span>
+                  <span>Architecture View</span>
+                </div>
+                <iframe
+                  class="lab-preview"
+                  title="H100 GPU architecture visualizer preview"
+                  src="https://cudacourseh100.github.io/h100visu/"
+                  loading="lazy"
+                  referrerpolicy="strict-origin-when-cross-origin"
+                ></iframe>
+              </div>
+            </article>
+
+            <article class="lab-item" data-reveal>
+              <div class="lab-copy">
+                <p class="lab-index">03</p>
+                <h3>DGX H100 Node Architecture</h3>
+                <p>
+                  A system-level view of the node: GPUs, fabric, and the kind of topology context that matters once the
+                  course moves beyond a single device.
+                </p>
+                <a class="button button-secondary" href="https://cudacourseh100.github.io/dgxvisu/" target="_blank" rel="noreferrer">
+                  Open DGX Visualizer
+                </a>
+              </div>
+              <div class="lab-preview-shell">
+                <div class="lab-preview-meta">
+                  <span>Live Preview</span>
+                  <span>Node Topology</span>
+                </div>
+                <iframe
+                  class="lab-preview"
+                  title="DGX H100 node architecture visualizer preview"
+                  src="https://cudacourseh100.github.io/dgxvisu/"
+                  loading="lazy"
+                  referrerpolicy="strict-origin-when-cross-origin"
+                ></iframe>
+              </div>
+            </article>
+
+            <article class="lab-item" data-reveal>
+              <div class="lab-copy">
+                <p class="lab-index">04</p>
+                <h3>WGMMA Lifecycle</h3>
+                <p>
+                  A scrollytelling walkthrough of WGMMA operations, swizzling, descriptors, and async load behavior on
+                  Hopper.
+                </p>
+                <a class="button button-secondary" href="https://cudacourseh100.github.io/wgmmavisu/" target="_blank" rel="noreferrer">
+                  Open WGMMA Visualizer
+                </a>
+              </div>
+              <div class="lab-preview-shell">
+                <div class="lab-preview-meta">
+                  <span>Live Preview</span>
+                  <span>Lifecycle Walkthrough</span>
+                </div>
+                <iframe
+                  class="lab-preview"
+                  title="WGMMA lifecycle visualizer preview"
+                  src="https://cudacourseh100.github.io/wgmmavisu/"
+                  loading="lazy"
+                  referrerpolicy="strict-origin-when-cross-origin"
+                ></iframe>
+              </div>
+            </article>
+
+            <article class="lab-item" data-reveal>
+              <div class="lab-copy">
+                <p class="lab-index">05</p>
+                <h3>TMA / WGMMA Async Pipeline</h3>
+                <p>
+                  A compact buffer-and-timeline view of overlapped load, compute, store, and barrier-driven progression
+                  through the asynchronous pipeline.
+                </p>
+                <a class="button button-secondary" href="https://cudacourseh100.github.io/simplebarrier/" target="_blank" rel="noreferrer">
+                  Open Barrier Visualizer
+                </a>
+              </div>
+              <div class="lab-preview-shell">
+                <div class="lab-preview-meta">
+                  <span>Live Preview</span>
+                  <span>Async Pipeline</span>
+                </div>
+                <iframe
+                  class="lab-preview"
+                  title="TMA and WGMMA async pipeline visualizer preview"
+                  src="https://cudacourseh100.github.io/simplebarrier/"
+                  loading="lazy"
+                  referrerpolicy="strict-origin-when-cross-origin"
+                ></iframe>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="closing" data-reveal>
+        <div class="section-shell closing-shell">
+          <p class="section-kicker section-kicker-dark">Who This Is For</p>
+          <h2>Built for people willing to read the kernel until the machine finally makes sense.</h2>
+          <p>
+            This is not beginner-flavored CUDA marketing. It is a serious course for engineers who want the execution
+            model, the descriptors, the waits, the tile scheduling, and the multi-GPU context all in one place.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="H100-Course/slides/0. CUDA Programming for NVIDIA H100 GPUs.pdf" target="_blank" rel="noreferrer">
+              Start with lesson 1
+            </a>
+            <a class="button button-secondary button-secondary-dark" href="slides.html">
+              Browse all slides
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>CUDA Programming for NVIDIA H100s</p>
+      <p>Prateek Shukla</p>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>
