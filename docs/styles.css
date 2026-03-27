@@ -28,6 +28,7 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 7.5rem;
 }
 
 body {
@@ -76,6 +77,53 @@ code {
   padding: 1rem max(1rem, calc((100vw - var(--content-width)) / 2));
   background: linear-gradient(180deg, rgba(8, 17, 29, 0.82), rgba(8, 17, 29, 0.26));
   backdrop-filter: blur(16px);
+}
+
+.nav-toggle {
+  display: none;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.72rem 0.9rem;
+  border: 1px solid rgba(244, 241, 235, 0.14);
+  background: rgba(8, 17, 29, 0.34);
+  color: var(--text-light);
+  cursor: pointer;
+  transition:
+    border-color 240ms var(--ease-out),
+    background-color 240ms var(--ease-out),
+    transform 240ms var(--ease-out);
+}
+
+.nav-toggle:hover,
+.nav-toggle:focus-visible {
+  border-color: rgba(166, 255, 107, 0.45);
+  background: rgba(8, 17, 29, 0.62);
+  transform: translateY(-2px);
+}
+
+.nav-toggle-label {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.nav-toggle-icon {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.28rem;
+  width: 1rem;
+}
+
+.nav-toggle-icon span {
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  transition:
+    transform 240ms var(--ease-out),
+    opacity 240ms var(--ease-out);
 }
 
 .header-mark {
@@ -129,6 +177,18 @@ code {
 .site-nav a:hover::after,
 .site-nav a:focus-visible::after {
   transform: scaleX(1);
+}
+
+body.is-nav-open .nav-toggle-icon span:nth-child(1) {
+  transform: translateY(0.38rem) rotate(45deg);
+}
+
+body.is-nav-open .nav-toggle-icon span:nth-child(2) {
+  opacity: 0;
+}
+
+body.is-nav-open .nav-toggle-icon span:nth-child(3) {
+  transform: translateY(-0.38rem) rotate(-45deg);
 }
 
 .hero {
@@ -488,6 +548,15 @@ code {
   border-bottom: 1px solid var(--bg-line);
 }
 
+.anchor-row {
+  grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+  gap: 1.8rem;
+}
+
+.anchor-row > * {
+  min-width: 0;
+}
+
 .lab-list {
   border-top-color: var(--bg-line-strong);
 }
@@ -704,6 +773,7 @@ code {
   margin: 0;
   font-size: 0.76rem;
   color: color-mix(in srgb, var(--pipeline-accent) 58%, #102030 42%);
+  overflow-wrap: anywhere;
 }
 
 .pipeline-title {
@@ -842,11 +912,13 @@ code {
 }
 
 .anchor-file {
-  display: inline-block;
+  display: block;
   font-family: var(--font-mono);
   font-size: clamp(1.06rem, 2vw, 1.32rem);
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--text-main);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .anchor-row p {
@@ -990,16 +1062,58 @@ code {
 
 @media (max-width: 960px) {
   .site-header {
-    align-items: flex-start;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.9rem 1rem;
+  }
+
+  .nav-toggle {
+    display: inline-flex;
+    justify-self: end;
   }
 
   .site-nav {
-    justify-content: flex-start;
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 0;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-0.55rem);
+    transition:
+      max-height 300ms var(--ease-out),
+      opacity 220ms var(--ease-out),
+      transform 300ms var(--ease-out),
+      padding 300ms var(--ease-out),
+      border-color 240ms var(--ease-out);
+    padding: 0 1rem;
+    border: 1px solid transparent;
+    background:
+      linear-gradient(180deg, rgba(10, 19, 31, 0.96), rgba(10, 19, 31, 0.9)),
+      rgba(10, 19, 31, 0.96);
+  }
+
+  body.is-nav-open .site-nav {
+    max-height: 24rem;
+    padding: 0.4rem 1rem 0.3rem;
+    border-color: rgba(244, 241, 235, 0.1);
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .site-nav a {
+    padding: 0.9rem 0;
+  }
+
+  .site-nav a + a {
+    border-top: 1px solid rgba(244, 241, 235, 0.08);
   }
 
   .hero-content {
-    padding-top: 11rem;
+    padding-top: 9.5rem;
   }
 
   .lesson-link {
@@ -1021,7 +1135,31 @@ code {
 }
 
 @media (max-width: 760px) {
+  html {
+    scroll-padding-top: 6.5rem;
+  }
+
+  .site-header {
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+  }
+
+  .header-mark {
+    max-width: 12.5rem;
+  }
+
+  .header-mark span:first-child,
+  .site-nav a,
+  .nav-toggle-label {
+    font-size: 0.7rem;
+  }
+
+  .header-mark span:last-child {
+    font-size: 0.86rem;
+  }
+
   .hero-content {
+    padding-top: 8.75rem;
     padding-bottom: 3.5rem;
   }
 
@@ -1049,6 +1187,10 @@ code {
 
   .pipeline-stage-strip {
     grid-template-columns: 1fr;
+  }
+
+  .anchor-row {
+    gap: 0.8rem;
   }
 
   .lesson-link p,
