@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Lesson 10 of CUDA Programming for NVIDIA H100s: Slurm orchestration, PMIx bootstrap, GPU binding, NCCL communicator setup, collective primitives, and distributed AI parallelism."
+    >
+    <meta name="theme-color" content="#08111d">
+    <title>Lesson 10 | Multi GPU Part 2</title>
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Urbanist:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="../styles.css">
+  </head>
+  <body class="lesson-view lesson-view-orchestration">
+    <header class="site-header">
+      <a class="header-mark" href="../index.html#top" aria-label="CUDA Programming for NVIDIA H100s">
+        <span>Prateek Shukla</span>
+        <span>CUDA Programming for NVIDIA H100s</span>
+      </a>
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="site-nav"
+        aria-label="Open navigation"
+      >
+        <span class="nav-toggle-label">Menu</span>
+        <span class="nav-toggle-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Lesson navigation">
+        <a href="#overview">Overview</a>
+        <a href="#slurm">Slurm</a>
+        <a href="#pmix">PMIx</a>
+        <a href="#nccl">NCCL</a>
+        <a href="#collectives">Collectives</a>
+        <a href="#parallelism">Parallelism</a>
+        <a href="../index.html#explore">Explore</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="lesson-hero">
+        <div class="section-shell lesson-hero-grid">
+          <div class="lesson-hero-copy">
+            <p class="hero-credit">Explore Here / Lesson 10</p>
+            <h1 class="lesson-hero-title">Multi GPU Part 2</h1>
+            <p class="lesson-hero-summary">
+              Lesson 10 is the software side of the cluster. Slurm allocates the job, PMIx introduces ranks to one
+              another, NCCL turns that bootstrap state into communicators and routes, and the parallelism strategies of
+              modern training map their tensor movement onto those collectives.
+            </p>
+            <div class="lesson-chip-list" aria-label="Lesson 10 topics">
+              <span class="lesson-chip">Slurm</span>
+              <span class="lesson-chip">PMIx</span>
+              <span class="lesson-chip">NCCL</span>
+              <span class="lesson-chip">Collectives</span>
+              <span class="lesson-chip">Parallelism</span>
+            </div>
+            <div class="hero-actions">
+              <a
+                class="button button-primary"
+                href="../H100-Course/slides/10. Multi GPU  Part 2.pdf"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Slide Deck
+              </a>
+              <a class="button button-secondary" href="../index.html#explore">Back to Explore</a>
+            </div>
+          </div>
+
+          <aside class="lesson-meta-card" data-reveal>
+            <p class="lesson-meta-eyebrow">What Changes Here</p>
+            <h2>The communication fabric finally gets a control plane, a bootstrap path, and a runtime API.</h2>
+            <p>
+              Lesson 9 explained the hardware. Lesson 10 explains how that hardware becomes a usable distributed
+              execution engine: who launches the ranks, how they discover each other, how the communicator is formed,
+              and which collective or parallelism pattern actually fits the workload.
+            </p>
+            <dl class="lesson-facts">
+              <div>
+                <dt>Course Position</dt>
+                <dd>Lesson 10 of 10</dd>
+              </div>
+              <div>
+                <dt>Main Shift</dt>
+                <dd>Distributed execution becomes a launch, discovery, and communication protocol problem.</dd>
+              </div>
+              <div>
+                <dt>Companion Deck</dt>
+                <dd><code>10. Multi GPU Part 2.pdf</code></dd>
+              </div>
+              <div>
+                <dt>Repo Note</dt>
+                <dd>No local Slurm / PMIx / NCCL source files are published in <code>files/</code>, so this page stays anchored to the course deck and the lesson 9 systems context.</dd>
+              </div>
+            </dl>
+          </aside>
+        </div>
+      </section>
+
+      <section class="lesson-body">
+        <div class="section-shell lesson-layout">
+          <aside class="lesson-sidebar">
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">On This Page</p>
+              <nav class="lesson-side-nav" aria-label="Lesson 10 sections">
+                <a href="#overview">How the stack fits together</a>
+                <a href="#slurm">Slurm and job launch</a>
+                <a href="#pmix">PMIx bootstrap</a>
+                <a href="#nccl">NCCL communicator setup</a>
+                <a href="#collectives">Collective primitives</a>
+                <a href="#parallelism">Parallelism patterns</a>
+                <a href="#continue">Course wrap-up</a>
+              </nav>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Key Takeaways</p>
+              <ul class="lesson-mini-list">
+                <li>Slurm allocates and launches, PMIx exchanges bootstrap metadata, and NCCL turns that metadata into GPU communication paths.</li>
+                <li><code>CUDA_VISIBLE_DEVICES</code> and local rank are part of correctness, not just convenience, because every task sees a filtered view of the node.</li>
+                <li>Data, tensor, pipeline, and expert parallelism are really communication-pattern choices built out of collectives and point-to-point transfers.</li>
+              </ul>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Companion Links</p>
+              <a class="lesson-text-link" href="lesson-9.html">Back to Lesson 9</a>
+              <a class="lesson-text-link" href="../slides.html">Browse All Slides</a>
+              <a class="lesson-text-link" href="../index.html#explore">Back to Explore</a>
+            </div>
+          </aside>
+
+          <article class="lesson-article">
+            <section class="lesson-chapter" id="overview" data-reveal>
+              <h2>How the distributed stack fits together</h2>
+              <p>
+                The final lesson is about separation of responsibilities. A training job is not “NCCL doing
+                everything.” Slurm decides where the work runs, PMIx gives isolated ranks a way to publish and retrieve
+                bootstrap metadata, and NCCL builds the communicator and issues the collective GPU work once the
+                participants know who they are.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Allocation and launch</h3>
+                  <p>
+                    Slurm controls nodes, GPUs, CPUs, memory, task placement, and the basic launch environment for each
+                    process.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Discovery and communication</h3>
+                  <p>
+                    PMIx handles metadata exchange. NCCL uses that state plus topology discovery to construct rings,
+                    trees, and direct paths for collective communication.
+                  </p>
+                </article>
+              </div>
+              <div class="lesson-note">
+                <p>
+                  <strong>The clean summary from the course:</strong> Slurm allocates, PMIx introduces peers, and NCCL
+                  moves tensors efficiently across the cluster.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="slurm" data-reveal>
+              <h2>Slurm is the cluster control plane, not the tensor communication layer</h2>
+              <p>
+                Slurm's job is resource allocation, placement, environment setup, and process launch. It knows the job
+                shape, the node list, and which devices are assigned to each task, but it does not by itself solve
+                rank-to-rank discovery or collective GPU communication.
+              </p>
+              <table class="lesson-table" aria-label="Slurm responsibilities">
+                <thead>
+                  <tr>
+                    <th>Responsibility</th>
+                    <th>What it gives you</th>
+                    <th>Why it matters</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Resource allocation</td>
+                    <td>Nodes, GPUs, CPUs, memory, and wall-clock limits.</td>
+                    <td>Defines the physical footprint of the distributed job.</td>
+                  </tr>
+                  <tr>
+                    <td>Task launch</td>
+                    <td>Process startup across the allocated nodes, often via <code>srun --mpi=pmix</code>.</td>
+                    <td>Replaces slower or more ad hoc host-by-host bootstrap flows.</td>
+                  </tr>
+                  <tr>
+                    <td>Device isolation</td>
+                    <td><code>CUDA_VISIBLE_DEVICES</code> and cgroup-level device filtering.</td>
+                    <td>Ensures each task sees only the GPUs it was allocated.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                The notes also emphasize the hierarchy of terms: job, task, rank, local rank, and namespace. Those
+                are not vocabulary trivia. They are the handles the rest of the startup path uses to bind processes to
+                devices and to each other.
+              </p>
+              <pre class="lesson-pre"><code>#!/bin/bash
+#SBATCH --nodes=4
+#SBATCH --ntasks-per-node=8
+#SBATCH --gpus-per-task=1
+
+srun --mpi=pmix python train.py</code></pre>
+            </section>
+
+            <section class="lesson-chapter" id="pmix" data-reveal>
+              <h2>PMIx solves the moment after launch and before communication</h2>
+              <p>
+                A newly started rank knows it exists, but it does not automatically know where rank 0 lives, which GPU
+                or NIC the others are bound to, or where the bootstrap data for the communicator has been published.
+                PMIx acts as the temporary data exchange layer for that phase.
+              </p>
+              <table class="lesson-table" aria-label="PMIx operations">
+                <thead>
+                  <tr>
+                    <th>Operation</th>
+                    <th>Purpose</th>
+                    <th>Typical use in this flow</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>PMIx_Put</code></td>
+                    <td>Publish bootstrap metadata.</td>
+                    <td>Rank 0 posts IDs or connection state into the PMIx store.</td>
+                  </tr>
+                  <tr>
+                    <td><code>PMIx_Commit</code></td>
+                    <td>Push local data so it becomes visible at the desired scope.</td>
+                    <td>Makes the published bootstrap state readable by peers.</td>
+                  </tr>
+                  <tr>
+                    <td><code>PMIx_Get</code></td>
+                    <td>Retrieve data that another participant published.</td>
+                    <td>Follower ranks fetch the NCCL unique ID or peer metadata.</td>
+                  </tr>
+                  <tr>
+                    <td><code>PMIx_Fence</code></td>
+                    <td>Synchronization point before dependent startup continues.</td>
+                    <td>Prevents some ranks from racing ahead before bootstrap state is globally visible.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                Local rank is the especially important bridge into CUDA. Because Slurm filters and re-indexes visible
+                devices, the process usually maps <code>PMIX_LOCAL_RANK</code> onto the GPUs it can see after
+                filtering, not onto the raw physical numbering on the node.
+              </p>
+              <div class="lesson-note">
+                <p>
+                  <strong>Debugging detail worth remembering:</strong> if every task sees only one filtered device,
+                  every task may report it is running on GPU 0. In that context, PCI bus IDs are often more trustworthy
+                  than the visible CUDA index.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="nccl" data-reveal>
+              <h2>NCCL turns bootstrap metadata into a communicator and a route plan</h2>
+              <p>
+                Before collectives can run, every participant needs to join the same communicator. The slides describe
+                the common pattern clearly: rank 0 creates an <code>ncclUniqueId</code>, publishes it through PMIx,
+                peers fence and retrieve it, and then every rank calls <code>ncclCommInitRank</code> with the same
+                unique ID, world size, and rank.
+              </p>
+              <pre class="lesson-pre"><code>ncclUniqueId id;
+if (global_rank == 0) {
+  ncclGetUniqueId(&amp;id);
+  // publish through PMIx
+}
+
+// synchronize, retrieve, initialize
+ncclCommInitRank(&amp;comm, world_size, id, global_rank);</code></pre>
+              <p>
+                Initialization is expensive because the ID is only the entry point. NCCL still has to build the actual
+                transport graph: which peers are local, which routes should prefer NVSwitch, which NICs should carry
+                inter-node jumps, and whether the communication structure should look more like a ring or a tree.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Why the ID matters</h3>
+                  <p>
+                    Every participant must possess the exact same unique ID, otherwise they are not joining the same
+                    communicator.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Why the fence matters</h3>
+                  <p>
+                    PMIx visibility rules are real. Peers cannot safely fetch communicator bootstrap state until rank 0
+                    has published and committed it at the correct scope.
+                  </p>
+                </article>
+              </div>
+              <p>
+                Teardown matters too. <code>ncclCommDestroy</code> invalidates the communicator and frees the scratch
+                space, mappings, and transport state built during initialization.
+              </p>
+            </section>
+
+            <section class="lesson-chapter" id="collectives" data-reveal>
+              <h2>Collectives are the real language of multi-GPU tensor movement</h2>
+              <p>
+                The lesson frames H100 clusters in terms of collective dataflow patterns, not manual send/receive.
+                Broadcast, Reduce, AllReduce, AllGather, ReduceScatter, and All-to-All each solve a different tensor
+                movement problem, and those patterns map directly onto different training strategies.
+              </p>
+              <table class="lesson-table" aria-label="NCCL collective summary">
+                <thead>
+                  <tr>
+                    <th>Primitive</th>
+                    <th>What it does</th>
+                    <th>Typical use</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Broadcast</td>
+                    <td>One root rank sends the same data to every rank.</td>
+                    <td>Weight initialization, checkpoint restore, shared metadata distribution.</td>
+                  </tr>
+                  <tr>
+                    <td>Reduce</td>
+                    <td>All ranks contribute values; one root receives the reduced result.</td>
+                    <td>Centralized consumption of a reduced tensor.</td>
+                  </tr>
+                  <tr>
+                    <td>AllReduce</td>
+                    <td>All ranks contribute and all receive the reduced result.</td>
+                    <td>Gradient synchronization in data parallel training.</td>
+                  </tr>
+                  <tr>
+                    <td>AllGather</td>
+                    <td>Every rank contributes a shard and all ranks receive the concatenated whole.</td>
+                    <td>Reconstructing full activations or parameters from shards.</td>
+                  </tr>
+                  <tr>
+                    <td>ReduceScatter</td>
+                    <td>Reduce first, then distribute disjoint slices of the reduced result.</td>
+                    <td>Sharded gradient or activation flows, especially in tensor and sequence parallel paths.</td>
+                  </tr>
+                  <tr>
+                    <td>All-to-All</td>
+                    <td>Every rank sends a different chunk to every other rank.</td>
+                    <td>Expert parallel routing and token exchange.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                The notes also emphasize that the operation itself is only part of the story. Datatype, reduction
+                operator, communicator, and CUDA stream are part of the call signature because NCCL is meant to compose
+                with the rest of the CUDA execution model rather than live outside it.
+              </p>
+            </section>
+
+            <section class="lesson-chapter" id="parallelism" data-reveal>
+              <h2>The four major parallelism patterns are really communication-pattern choices</h2>
+              <p>
+                The final conceptual move of the course is to tie AI training strategies back to the collectives they
+                require. Data, tensor, pipeline, and expert parallelism are not just framework buzzwords. Each one
+                implies a specific pattern of tensor replication, sharding, and communication.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Data parallelism</h3>
+                  <p>
+                    Replicate the model on every GPU and split the data. The defining collective is
+                    <code>AllReduce</code>, with <code>Broadcast</code> often used for initialization.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Tensor parallelism</h3>
+                  <p>
+                    Split large matrices across GPUs. This introduces <code>AllGather</code>,
+                    <code>AllReduce</code>, and <code>ReduceScatter</code> depending on the sharding direction and
+                    whether sequence parallelism is in play.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Pipeline parallelism</h3>
+                  <p>
+                    Split the model vertically by layers. Communication becomes neighbor-to-neighbor point-to-point
+                    traffic as micro-batches move through the pipeline.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Expert parallelism</h3>
+                  <p>
+                    Route tokens to whichever GPU hosts the chosen expert. This is where the system starts to look like
+                    large-scale <code>All-to-All</code> traffic instead of simple replicated gradient exchange.
+                  </p>
+                </article>
+              </div>
+              <p>
+                The sequence-parallel discussion in the slides is especially important because it shows how an
+                <code>AllReduce</code> can often be decomposed into <code>ReduceScatter + AllGather</code>, leaving
+                room to do useful work on the sharded intermediate state rather than replicating everything immediately.
+              </p>
+              <div class="lesson-note">
+                <p>
+                  <strong>The final mental model:</strong> once you know the primitive each parallelism strategy
+                  requires, you can start reasoning clearly about whether the bottleneck is bandwidth, latency,
+                  topology, or buffering rather than treating “distributed training” as one opaque step.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="takeaways" data-reveal>
+              <h2>Practical guidance</h2>
+              <ol>
+                <li><strong>Keep the layers of responsibility straight.</strong> Job scheduling, bootstrap metadata exchange, and collective execution solve different problems even though they appear in one startup path.</li>
+                <li><strong>Bind GPUs using the filtered local view.</strong> Local rank plus visible device count are usually the correct inputs after Slurm has applied device filtering.</li>
+                <li><strong>Treat communicator setup as a real phase.</strong> The unique ID is only the beginning; topology discovery and route construction are where startup cost comes from.</li>
+                <li><strong>Choose collectives from the tensor pattern, not from habit.</strong> AllReduce is not the answer to every distributed step once the model is sharded in different ways.</li>
+                <li><strong>See the course as one staircase.</strong> The kernel lessons explain how one GPU stays busy. The final two lessons explain how many GPUs become one training machine.</li>
+              </ol>
+              <h3>Glossary</h3>
+              <table class="lesson-table" aria-label="Lesson 10 glossary">
+                <tbody>
+                  <tr>
+                    <th>Slurm</th>
+                    <td>Cluster workload manager and scheduler that allocates resources and launches tasks.</td>
+                  </tr>
+                  <tr>
+                    <th>PMIx</th>
+                    <td>Process bootstrap and metadata exchange interface used for scalable peer discovery after launch.</td>
+                  </tr>
+                  <tr>
+                    <th><code>ncclUniqueId</code></th>
+                    <td>Bootstrap token shared across ranks so they can join the same NCCL communicator.</td>
+                  </tr>
+                  <tr>
+                    <th>AllReduce</th>
+                    <td>Collective where all ranks contribute data and all ranks receive the reduced result.</td>
+                  </tr>
+                  <tr>
+                    <th>Expert parallelism</th>
+                    <td>Distributed routing strategy where tokens are sent to whichever device hosts the selected experts.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="lesson-chapter" id="continue" data-reveal>
+              <h2>Course wrap-up</h2>
+              <p>
+                This final lesson closes the loop: Hopper primitives, kernel pipelines, schedulers, node fabrics, and
+                distributed orchestration are all part of the same machine model. The course is complete, but the site
+                now keeps the whole path connected so you can revisit any step without dropping out of the main UI.
+              </p>
+              <div class="lesson-resource-grid">
+                <a class="lesson-resource-card" href="../slides.html">
+                  <span class="lesson-resource-label">Course Material</span>
+                  <h3>Browse All Slides</h3>
+                  <p>Open the full deck collection when you want the original lecture flow across the whole course and the Stream-K addendum.</p>
+                </a>
+                <a class="lesson-resource-card" href="lesson-9.html">
+                  <span class="lesson-resource-label">Previous Lesson</span>
+                  <h3>Multi GPU Part 1</h3>
+                  <p>Step back into NVLink, NVSwitch, ConnectX, rails, and topology if you want the hardware preface to this orchestration layer.</p>
+                </a>
+                <a
+                  class="lesson-resource-card"
+                  href="../H100-Course/slides/10. Multi GPU  Part 2.pdf"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <span class="lesson-resource-label">Source Deck</span>
+                  <h3>Open Multi GPU Part 2</h3>
+                  <p>Return to the original lecture deck for the uncompressed slide sequence behind this final lesson page.</p>
+                </a>
+                <a class="lesson-resource-card" href="../index.html#explore">
+                  <span class="lesson-resource-label">Explore</span>
+                  <h3>Back to Lesson Dossiers</h3>
+                  <p>Return to the homepage and move through the full integrated course without leaving the site-native experience.</p>
+                </a>
+              </div>
+            </section>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <nav class="footer-nav" aria-label="Footer">
+        <a href="../index.html#top">Home</a>
+        <a href="../index.html#lessons">Lessons</a>
+        <a href="../index.html#explore">Explore</a>
+        <a href="../index.html#visuals">Visuals</a>
+        <a href="../slides.html">Slides</a>
+      </nav>
+      <p>CUDA Programming for NVIDIA H100s</p>
+      <p>Prateek Shukla</p>
+    </footer>
+
+    <script src="../script.js"></script>
+  </body>
+</html>

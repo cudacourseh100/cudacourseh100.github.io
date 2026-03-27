@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@theme {
+  --color-nvidia: #76b900;
+  --color-nvidia-dark: #5e9400;
+  --color-gray-850: #1f2937;
+}
+
+/* Custom scrollbar for technical dashboards */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-gray-900);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-gray-700);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gray-600);
+}

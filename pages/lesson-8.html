@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Lesson 8 of CUDA Programming for NVIDIA H100s: arithmetic intensity, warp specialization, circular buffering, cooperative and ping-pong pipelines, persistent scheduling, Stream-K, clusters, and epilogue design."
+    >
+    <meta name="theme-color" content="#08111d">
+    <title>Lesson 8 | Kernel Design</title>
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Urbanist:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="../styles.css">
+  </head>
+  <body class="lesson-view lesson-view-kernel-design">
+    <header class="site-header">
+      <a class="header-mark" href="../index.html#top" aria-label="CUDA Programming for NVIDIA H100s">
+        <span>Prateek Shukla</span>
+        <span>CUDA Programming for NVIDIA H100s</span>
+      </a>
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="site-nav"
+        aria-label="Open navigation"
+      >
+        <span class="nav-toggle-label">Menu</span>
+        <span class="nav-toggle-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Lesson navigation">
+        <a href="#overview">Overview</a>
+        <a href="#compute">Compute-Bound</a>
+        <a href="#pipeline">Pipelines</a>
+        <a href="#architectures">Architectures</a>
+        <a href="#scheduling">Scheduling</a>
+        <a href="#epilogue">Epilogue</a>
+        <a href="../index.html#explore">Explore</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="lesson-hero">
+        <div class="section-shell lesson-hero-grid">
+          <div class="lesson-hero-copy">
+            <p class="hero-credit">Explore Here / Lesson 08</p>
+            <h1 class="lesson-hero-title">Kernel Design</h1>
+            <p class="lesson-hero-summary">
+              Lesson 8 zooms out from one Hopper primitive to the whole kernel. The problem becomes utilization:
+              deciding whether the bottleneck is math or movement, shaping warp roles, sizing circular buffers, picking
+              cooperative versus ping-pong pipelines, scheduling tiles persistently, and designing an epilogue that
+              does not undo the mainloop.
+            </p>
+            <div class="lesson-chip-list" aria-label="Lesson 8 topics">
+              <span class="lesson-chip">Arithmetic Intensity</span>
+              <span class="lesson-chip">Warp Specialization</span>
+              <span class="lesson-chip">Ping-Pong</span>
+              <span class="lesson-chip">Stream-K</span>
+              <span class="lesson-chip">Epilogue</span>
+            </div>
+            <div class="hero-actions">
+              <a
+                class="button button-primary"
+                href="../H100-Course/slides/8. Kernel Design.pdf"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Slide Deck
+              </a>
+              <a class="button button-secondary" href="../index.html#explore">Back to Explore</a>
+            </div>
+          </div>
+
+          <aside class="lesson-meta-card" data-reveal>
+            <p class="lesson-meta-eyebrow">What Changes Here</p>
+            <h2>The primitives finally become a scheduling problem.</h2>
+            <p>
+              By this point the course has introduced barriers, TMA, <code>cp.async.bulk</code>, and WGMMA. Kernel
+              design is where those pieces get arranged into a repeatable utilization strategy: who loads, who
+              computes, who stores, what stays in flight, and which CTA owns the next tile.
+            </p>
+            <dl class="lesson-facts">
+              <div>
+                <dt>Course Position</dt>
+                <dd>Lesson 08 of 10</dd>
+              </div>
+              <div>
+                <dt>Main Shift</dt>
+                <dd>Performance stops being about one primitive and becomes a pipeline architecture.</dd>
+              </div>
+              <div>
+                <dt>Companion Deck</dt>
+                <dd><code>8. Kernel Design.pdf</code></dd>
+              </div>
+              <div>
+                <dt>Code Anchors</dt>
+                <dd><code>sm90_gemm_tma_warpspecialized_pingpong.hpp</code> and <code>sm90_tile_scheduler_stream_k.hpp</code></dd>
+              </div>
+            </dl>
+          </aside>
+        </div>
+      </section>
+
+      <section class="lesson-body">
+        <div class="section-shell lesson-layout">
+          <aside class="lesson-sidebar">
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">On This Page</p>
+              <nav class="lesson-side-nav" aria-label="Lesson 8 sections">
+                <a href="#overview">Classify the bottleneck</a>
+                <a href="#compute">Warp specialization and registers</a>
+                <a href="#pipeline">Circular buffers and barriers</a>
+                <a href="#architectures">Cooperative vs ping-pong</a>
+                <a href="#scheduling">Persistent scheduling and Stream-K</a>
+                <a href="#epilogue">Epilogue handoff</a>
+                <a href="#continue">Continue the course</a>
+              </nav>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Key Takeaways</p>
+              <ul class="lesson-mini-list">
+                <li>Arithmetic intensity tells you whether to chase math throughput or data movement first.</li>
+                <li>Warp specialization plus staged barriers is how Hopper kernels survive register pressure and memory latency together.</li>
+                <li>Ping-pong, cooperative, persistent scheduling, Stream-K, and epilogue policy are all utilization decisions.</li>
+              </ul>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Companion Links</p>
+              <a class="lesson-text-link" href="lesson-7.html">Back to Lesson 7</a>
+              <a class="lesson-text-link" href="lesson-8.1.html">Open Lesson 8.1</a>
+              <a class="lesson-text-link" href="../files/sm90_gemm_tma_warpspecialized_pingpong.hpp" target="_blank" rel="noreferrer">Open Ping-Pong Mainloop</a>
+              <a class="lesson-text-link" href="../files/sm90_gemm_tma_warpspecialized_cooperative.hpp" target="_blank" rel="noreferrer">Open Cooperative Mainloop</a>
+              <a class="lesson-text-link" href="../files/sm90_tile_scheduler_stream_k.hpp" target="_blank" rel="noreferrer">Open Stream-K Scheduler</a>
+              <a class="lesson-text-link" href="../files/sm90_epilogue_tma_warpspecialized.hpp" target="_blank" rel="noreferrer">Open TMA Epilogue Anchor</a>
+            </div>
+          </aside>
+
+          <article class="lesson-article">
+            <section class="lesson-chapter" id="overview" data-reveal>
+              <h2>Classify the bottleneck before you design the kernel</h2>
+              <p>
+                The notes start from first principles: CUDA kernels are either limited primarily by math throughput or
+                by data movement. Arithmetic intensity is the guide:
+                <code>AI = FLOPs / bytes moved</code>. If that value is below the hardware ridge point, the kernel is
+                memory-bound. If it is above the ridge point, the kernel is compute-bound.
+              </p>
+              <table class="lesson-table" aria-label="Kernel classification guide">
+                <thead>
+                  <tr>
+                    <th>Regime</th>
+                    <th>Primary symptom</th>
+                    <th>What you optimize first</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Memory-bound</td>
+                    <td>Execution is gated by bytes moved rather than math issue.</td>
+                    <td>Traffic reduction, locality, cache behavior, and movement overlap.</td>
+                  </tr>
+                  <tr>
+                    <td>Compute-bound</td>
+                    <td>Tensor cores or arithmetic issue are the actual limiter.</td>
+                    <td>Register pressure, WGMMA issue density, pipeline depth, and epilogue overlap.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                The slides give concrete ridge-point intuition: roughly <code>295 FLOP / byte</code> for FP16 tensor
+                operations and around <code>20 FLOP / byte</code> for FP32 CUDA-core work. That is why the lesson is
+                mostly about Hopper GEMMs. They are high-arithmetic-intensity kernels whose bottleneck shifts toward
+                register file pressure, WGMMA launch rate, and scheduling rather than raw byte traffic alone.
+              </p>
+            </section>
+
+            <section class="lesson-chapter" id="compute" data-reveal>
+              <h2>Compute-bound kernels live or die by warp specialization and register policy</h2>
+              <p>
+                Hopper compute-bound kernels are defined by strong reuse and a producer-consumer imbalance. The
+                producer warps frequently sit at barriers waiting for consumers because the real pressure is on the math
+                path: accumulators, operand fragments, issue cadence, and the number of registers required to keep a
+                large output tile resident.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Producer warps</h3>
+                  <p>
+                    Usually one warpgroup is enough. Producers mainly issue TMA copies, manage barriers, and stay lean
+                    on registers.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Consumer warps</h3>
+                  <p>
+                    Consumers carry the accumulator tile and drive WGMMA. They are where register pressure explodes,
+                    which is why the notes treat one or two consumer warpgroups as the main design choice.
+                  </p>
+                </article>
+              </div>
+              <h3><code>setmaxnreg</code> makes the asymmetry explicit</h3>
+              <p>
+                The lesson highlights <code>setmaxnreg</code> as the instruction that lets different warp roles ask for
+                different register budgets during execution. Producers can stay near the minimum, while consumers
+                request the larger allocation needed by the MMA-heavy section.
+              </p>
+              <table class="lesson-table" aria-label="Warp specialization design choices">
+                <thead>
+                  <tr>
+                    <th>Design choice</th>
+                    <th>Why it exists</th>
+                    <th>Typical consequence</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>One producer warpgroup</td>
+                    <td>A single issuing thread can launch large TMA-backed movement.</td>
+                    <td>Keeps load-side overhead small and frees resources for math.</td>
+                  </tr>
+                  <tr>
+                    <td>One or two consumer warpgroups</td>
+                    <td>Accumulator tiles determine how much math state fits per warpgroup.</td>
+                    <td>Drives the choice between basic / ping-pong and cooperative pipelines.</td>
+                  </tr>
+                  <tr>
+                    <td>Moderate occupancy, high register density</td>
+                    <td>Compute-bound kernels do not need maximal occupancy if they keep tensor cores fed.</td>
+                    <td>Register budgeting becomes more important than raw block count.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="lesson-note">
+                <p>
+                  <strong>The mental model:</strong> warp specialization is not just branch cleanup. It is how the
+                  kernel fits the live state of a Hopper GEMM into the register file without spilling away the whole
+                  win.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="pipeline" data-reveal>
+              <h2>Circular buffers are the physical structure that makes overlap real</h2>
+              <p>
+                The lesson reduces pipelining to one idea: while tile <code>N</code> is being computed, tile
+                <code>N + 1</code> must already be moving. Shared memory becomes a fixed ring of stages that the
+                producer fills and the consumer drains round-robin.
+              </p>
+              <pre class="lesson-pre"><code>Producer waits EMPTY  -&gt; declares expected bytes on FULL
+Producer issues TMA   -&gt; hardware signals FULL on completion
+Consumer waits FULL   -&gt; issues WGMMA from that stage
+Consumer waits oldest -&gt; arrives EMPTY to release the stage</code></pre>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>FULL barrier</h3>
+                  <p>
+                    The consumer waits here before reading a stage. In TMA pipelines this is tied to real transfer
+                    completion, not just a software flag.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>EMPTY barrier</h3>
+                  <p>
+                    The producer waits here before reusing a stage. Consumers release it only after the oldest WGMMA
+                    that touches that stage is known to be done.
+                  </p>
+                </article>
+              </div>
+              <p>
+                Phase bits are what keep the ring safe after wrap-around. Stage indices repeat. The phase bit flips on
+                wrap so “stage 0 is full” can be disambiguated as the old pass or the new pass through the circular
+                buffer.
+              </p>
+              <h3>Prologue, steady state, drain</h3>
+              <ol>
+                <li><strong>Prologue:</strong> fill the pipeline with initial WGMMA work before releasing anything.</li>
+                <li><strong>Steady state:</strong> wait for data, issue WGMMA, wait for the oldest in-flight group, release the oldest stage, advance.</li>
+                <li><strong>Drain:</strong> finish with <code>warpgroup_wait&lt;0&gt;()</code>, then release the remaining stages so producers can exit cleanly.</li>
+              </ol>
+            </section>
+
+            <section class="lesson-chapter" id="architectures" data-reveal>
+              <h2>Cooperative and ping-pong pipelines solve different utilization problems</h2>
+              <p>
+                Both architectures use the same core ingredients: one producer warpgroup, consumer warpgroups,
+                circular shared-memory stages, and barrier-backed overlap. The difference is where the second consumer
+                warpgroup is spent.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Cooperative pipeline</h3>
+                  <p>
+                    Two consumer warpgroups work on the same output tile. That enables larger effective CTA tiles
+                    because each warpgroup owns a disjoint M region, but tensor cores go idle during the epilogue.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Ping-pong pipeline</h3>
+                  <p>
+                    Consumer 0 and Consumer 1 alternate tiles. While one runs the epilogue, the other runs the next
+                    tile's WGMMA mainloop. This is the design that overlaps epilogue with tensor-core work.
+                  </p>
+                </article>
+              </div>
+              <table class="lesson-table" aria-label="Pipeline architecture comparison">
+                <thead>
+                  <tr>
+                    <th>Architecture</th>
+                    <th>Best when</th>
+                    <th>Main tradeoff</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Cooperative</td>
+                    <td>You need a larger output tile than one warpgroup can hold in registers.</td>
+                    <td>Epilogue time is not hidden by concurrent WGMMA.</td>
+                  </tr>
+                  <tr>
+                    <td>Ping-pong</td>
+                    <td>Epilogue overlap is critical and K is large enough to keep alternating consumers busy.</td>
+                    <td>The coordination logic is more intricate, especially around ordered barriers and epilogue handoff.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <h3>Clusters extend the data-sharing radius</h3>
+              <p>
+                The notes treat thread block clusters mainly as a load-side optimization for WGMMA kernels. Adjacent
+                CTAs that need the same A or B tile can use TMA multicast so one global-memory read fans out into the
+                local shared memory of the blocks in the cluster. Typical shapes like <code>(1, 2)</code> or
+                <code>(2, 1)</code> are favored because neighboring blocks inside a TPC communicate especially well.
+              </p>
+            </section>
+
+            <section class="lesson-chapter" id="scheduling" data-reveal>
+              <h2>Persistent scheduling decides who gets the next tile and how fixup happens</h2>
+              <p>
+                Scheduling is not just launch geometry. It is the policy that maps tile coordinates onto workers over
+                time. Hopper kernels frequently use persistent scheduling so a smaller grid can stay resident and loop
+                through many work tiles rather than paying the full non-persistent tail every time.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Persistent tiles</h3>
+                  <p>
+                    A CTA pulls a sequence of tiles, keeps its role assignment and pipeline state alive, and avoids the
+                    worst tail effects of one-shot block scheduling.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Stream-K</h3>
+                  <p>
+                    Work can be decomposed along K so multiple CTAs contribute partial sums to one output tile, then
+                    fix up the result through a reduction and epilogue ownership rule.
+                  </p>
+                </article>
+              </div>
+              <p>
+                The Stream-K scheduler in this repo makes that explicit with a work unit that tracks
+                <code>M_idx</code>, <code>N_idx</code>, <code>L_idx</code>, <code>K_idx</code>, and
+                <code>k_tile_count</code>. Those fields tell the CTA where its split starts and how much of the K
+                dimension it owns.
+              </p>
+              <table class="lesson-table" aria-label="Stream-K role breakdown">
+                <thead>
+                  <tr>
+                    <th>Role</th>
+                    <th>Predicate</th>
+                    <th>Responsibility</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>First split</td>
+                    <td><code>K_idx == 0</code></td>
+                    <td>Initialize the partial result in workspace.</td>
+                  </tr>
+                  <tr>
+                    <td>Middle split</td>
+                    <td><code>0 &lt; K_idx</code> and not final</td>
+                    <td>Reduce into existing workspace state.</td>
+                  </tr>
+                  <tr>
+                    <td>Final split</td>
+                    <td><code>K_idx + k_tile_count == k_tiles_per_output_tile</code></td>
+                    <td>Own the final fixup and epilogue for that output tile.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                The notes also highlight grouping as an L2-locality optimization on top of Stream-K. Rather than one
+                completely global pool of stream-K units, groups partition work so cooperating CTAs stay closer to the
+                same region of output space and share more useful cache state.
+              </p>
+            </section>
+
+            <section class="lesson-chapter" id="epilogue" data-reveal>
+              <h2>The epilogue is its own pipeline, not an afterthought</h2>
+              <p>
+                The output tile is usually too large to dump from registers to global memory in one step. Hopper
+                epilogues break the tile into subtiles, optionally load source tensor C, apply the elementwise or
+                scaling logic in registers, copy the converted result into shared memory, and then issue TMA stores for
+                the completed subtile.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Register to shared</h3>
+                  <p>
+                    Consumers write each subtile into shared memory after type conversion. When C and D share element
+                    width, the same shared-memory buffers can be reused for load and store phases.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Shared to global</h3>
+                  <p>
+                    A cross-proxy fence plus <code>bar.sync</code> make the full subtile visible before the TMA store
+                    launches, and the store pipeline can overlap one subtile's write with work on the next subtile.
+                  </p>
+                </article>
+              </div>
+              <p>
+                In the ping-pong design, the handoff is even more structured. One consumer's epilogue must coexist with
+                the other consumer's MMA. The lesson describes a 2x2 ordered-barrier grid: one row for MMA handoff and
+                one row for epilogue handoff. That is what lets the two consumers alternate without corrupting shared
+                memory or starving tensor cores.
+              </p>
+              <div class="lesson-note">
+                <p>
+                  <strong>Important restraint:</strong> not every post-op belongs inside the epilogue. The notes are
+                  explicit that cross-tile reductions like layer norm or softmax often require a real kernel boundary,
+                  and the goal becomes making that handoff cheap rather than pretending it can always be fused away.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="continue" data-reveal>
+              <h2>Continue the course</h2>
+              <p>
+                Lesson 8 turns the Hopper primitives into full-kernel machinery. Before leaving the kernel layer
+                entirely, the Stream-K addendum zooms into the tail-balancing scheduler that keeps persistent kernels
+                busy when a plain tile-parallel launch starts wasting SMs.
+              </p>
+              <div class="lesson-resource-grid">
+                <a class="lesson-resource-card" href="lesson-8.1.html">
+                  <span class="lesson-resource-label">Next Lesson</span>
+                  <h3>Stream-K</h3>
+                  <p>Continue into split-K work units, fixup, locks, and the scheduler logic that targets the tail wave directly.</p>
+                </a>
+                <a class="lesson-resource-card" href="../files/sm90_gemm_tma_warpspecialized_pingpong.hpp" target="_blank" rel="noreferrer">
+                  <span class="lesson-resource-label">Code Anchor</span>
+                  <h3>Ping-Pong Mainloop</h3>
+                  <p>See ordered math warpgroups, persistent tile iteration, and epilogue overlap in the repo's SM90 ping-pong kernel.</p>
+                </a>
+                <a class="lesson-resource-card" href="../files/sm90_tile_scheduler_stream_k.hpp" target="_blank" rel="noreferrer">
+                  <span class="lesson-resource-label">Code Anchor</span>
+                  <h3>Stream-K Scheduler</h3>
+                  <p>Open the work-tile bookkeeping and fixup logic that turns split-K style scheduling into something the kernel can execute.</p>
+                </a>
+                <a class="lesson-resource-card" href="lesson-9.html">
+                  <span class="lesson-resource-label">After That</span>
+                  <h3>Multi GPU Part 1</h3>
+                  <p>Move from kernel utilization into NVLink, NVSwitch, rails, and the system-level fabric behind large H100 training jobs.</p>
+                </a>
+              </div>
+            </section>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <nav class="footer-nav" aria-label="Footer">
+        <a href="../index.html#top">Home</a>
+        <a href="../index.html#lessons">Lessons</a>
+        <a href="../index.html#explore">Explore</a>
+        <a href="../index.html#visuals">Visuals</a>
+        <a href="../slides.html">Slides</a>
+      </nav>
+      <p>CUDA Programming for NVIDIA H100s</p>
+      <p>Prateek Shukla</p>
+    </footer>
+
+    <script src="../script.js"></script>
+  </body>
+</html>

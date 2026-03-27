@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Lesson 7 of CUDA Programming for NVIDIA H100s: WGMMA commit and wait groups, wgmma.fence, stmatrix, FP8 scaling and packing, K-major constraints, and sparse WGMMA metadata."
+    >
+    <meta name="theme-color" content="#08111d">
+    <title>Lesson 7 | WGMMA Part 2</title>
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Urbanist:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="../styles.css">
+  </head>
+  <body class="lesson-view lesson-view-wgmma-2">
+    <header class="site-header">
+      <a class="header-mark" href="../index.html#top" aria-label="CUDA Programming for NVIDIA H100s">
+        <span>Prateek Shukla</span>
+        <span>CUDA Programming for NVIDIA H100s</span>
+      </a>
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="site-nav"
+        aria-label="Open navigation"
+      >
+        <span class="nav-toggle-label">Menu</span>
+        <span class="nav-toggle-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Lesson navigation">
+        <a href="#overview">Overview</a>
+        <a href="#grouping">Groups</a>
+        <a href="#stmatrix">stmatrix</a>
+        <a href="#fp8">FP8</a>
+        <a href="#sparse">Sparse</a>
+        <a href="#takeaways">Takeaways</a>
+        <a href="../index.html#explore">Explore</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="lesson-hero">
+        <div class="section-shell lesson-hero-grid">
+          <div class="lesson-hero-copy">
+            <p class="hero-credit">Explore Here / Lesson 07</p>
+            <h1 class="lesson-hero-title">WGMMA Part 2</h1>
+            <p class="lesson-hero-summary">
+              Lesson 7 is the rest of the warpgroup story. Once WGMMA is in flight, you still need a real lifecycle:
+              grouping and draining async math, handling accumulator hazards correctly, turning opaque register
+              fragments into storable tiles with <code>stmatrix</code>, and surviving FP8 plus sparse tensor-core
+              constraints without losing the machine model.
+            </p>
+            <div class="lesson-chip-list" aria-label="Lesson 7 topics">
+              <span class="lesson-chip">commit_group</span>
+              <span class="lesson-chip">wait_group</span>
+              <span class="lesson-chip">stmatrix</span>
+              <span class="lesson-chip">FP8</span>
+              <span class="lesson-chip">Sparse WGMMA</span>
+            </div>
+            <div class="hero-actions">
+              <a
+                class="button button-primary"
+                href="../H100-Course/slides/7. Wgmma part 2.pdf"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Slide Deck
+              </a>
+              <a class="button button-secondary" href="../index.html#explore">Back to Explore</a>
+            </div>
+          </div>
+
+          <aside class="lesson-meta-card" data-reveal>
+            <p class="lesson-meta-eyebrow">What Changes Here</p>
+            <h2>Async tensor-core launch becomes a pipeline you have to close, drain, store, and sometimes compress.</h2>
+            <p>
+              Part 1 introduced warpgroup issue. Part 2 explains what lets that issue model survive real kernels:
+              group boundaries, wait depth, register hazard control, accumulator export, FP8 transport rules, and the
+              metadata path for sparse MMA.
+            </p>
+            <dl class="lesson-facts">
+              <div>
+                <dt>Course Position</dt>
+                <dd>Lesson 07 of 10</dd>
+              </div>
+              <div>
+                <dt>Main Shift</dt>
+                <dd>WGMMA is no longer just launched. It has to be intentionally pipelined and drained.</dd>
+              </div>
+              <div>
+                <dt>Companion Deck</dt>
+                <dd><code>7. Wgmma part 2.pdf</code></dd>
+              </div>
+              <div>
+                <dt>Code Anchors</dt>
+                <dd><code>matmul_12.cuh</code> and <code>sm90_mma_tma_gmma_rs_warpspecialized.hpp</code></dd>
+              </div>
+            </dl>
+          </aside>
+        </div>
+      </section>
+
+      <section class="lesson-body">
+        <div class="section-shell lesson-layout">
+          <aside class="lesson-sidebar">
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">On This Page</p>
+              <nav class="lesson-side-nav" aria-label="Lesson 7 sections">
+                <a href="#overview">Why lifecycle control matters</a>
+                <a href="#grouping">Commit, wait, and fence</a>
+                <a href="#stmatrix">Accumulator export</a>
+                <a href="#fp8">FP8 formats and packing</a>
+                <a href="#sparse">Sparse metadata rules</a>
+                <a href="#takeaways">Practical guidance</a>
+                <a href="#continue">Continue the course</a>
+              </nav>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Key Takeaways</p>
+              <ul class="lesson-mini-list">
+                <li><code>wgmma.commit_group</code> and <code>wgmma.wait_group&lt;N&gt;</code> are pipeline depth controls, not generic barriers.</li>
+                <li><code>wgmma.fence</code> orders register hazards for WGMMA, but shared-memory visibility still needs the right proxy-aware fencing.</li>
+                <li><code>stmatrix</code>, FP8 packing, and sparse metadata are what make async tensor-core results usable in full kernels.</li>
+              </ul>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Companion Links</p>
+              <a class="lesson-text-link" href="lesson-6.html">Back to Lesson 6</a>
+              <a class="lesson-text-link" href="lesson-8.html">Open Lesson 8</a>
+              <a class="lesson-text-link" href="../files/fast.cu/examples/matmul/matmul_12.cuh" target="_blank" rel="noreferrer">Open matmul_12.cuh</a>
+              <a class="lesson-text-link" href="../files/sm90_mma_tma_gmma_rs_warpspecialized.hpp" target="_blank" rel="noreferrer">Open RS WGMMA Anchor</a>
+            </div>
+          </aside>
+
+          <article class="lesson-article">
+            <section class="lesson-chapter" id="overview" data-reveal>
+              <h2>Why lifecycle control matters</h2>
+              <p>
+                <code>wgmma.mma_async</code> returns immediately. That is the whole reason Hopper can overlap tensor
+                math with TMA loads, pointer work, and staging for the next tile. But once math is asynchronous, the
+                program also needs a way to bundle launches, cap how much is in flight, and know when accumulators are
+                actually safe to consume.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Track batches, not individual MMAs</h3>
+                  <p>
+                    The notes are explicit that groups exist so hardware does not have to scoreboard every single MMA
+                    independently. A tile's worth of issue becomes one trackable unit.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Drain only when the next phase needs it</h3>
+                  <p>
+                    You usually do not want a “wait for everything” barrier after every issue window. You keep some
+                    groups in flight, stage the next work, and drain fully only before register consumption or store.
+                  </p>
+                </article>
+              </div>
+              <div class="lesson-note">
+                <p>
+                  <strong>The pattern to remember:</strong> issue a batch, commit it, start preparing the next batch,
+                  wait only until the in-flight depth falls back to the desired window, and use
+                  <code>wait_group 0</code> when you truly need fully materialized results.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="grouping" data-reveal>
+              <h2>Commit, wait, and fence define the WGMMA lifecycle</h2>
+              <p>
+                Grouping gives WGMMA pipeline-friendly granularity. The current batch of async MMAs stays “open” until
+                you close it with <code>wgmma.commit_group.sync.aligned</code>. Later, <code>wgmma.wait_group</code>
+                lets the warpgroup stall only when too many committed batches are still in flight.
+              </p>
+              <pre class="lesson-pre"><code>// One output-tile worth of async math
+wgmma.mma_async ...
+wgmma.mma_async ...
+wgmma.commit_group.sync.aligned;
+
+// Prepare the next tile while some math still runs
+// TMA, pointer math, shared-memory staging, etc.
+wgmma.wait_group.sync.aligned 1;
+
+// Before reading accumulators or exporting them
+wgmma.wait_group.sync.aligned 0;</code></pre>
+              <table class="lesson-table" aria-label="WGMMA lifecycle instructions">
+                <thead>
+                  <tr>
+                    <th>Instruction</th>
+                    <th>What it does</th>
+                    <th>What it does not do</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>wgmma.commit_group</code></td>
+                    <td>Closes the current batch so hardware can track it as one committed group.</td>
+                    <td>It does not wait for completion.</td>
+                  </tr>
+                  <tr>
+                    <td><code>wgmma.wait_group N</code></td>
+                    <td>Stalls until only <code>N</code> committed groups remain in flight.</td>
+                    <td>It is not a blanket “synchronize all tensor work forever” primitive unless <code>N = 0</code>.</td>
+                  </tr>
+                  <tr>
+                    <td><code>wgmma.fence.sync.aligned</code></td>
+                    <td>Marks the warpgroup issue boundary and orders accumulator / register-sourced operand hazards for WGMMA.</td>
+                    <td>It is not the async proxy fence for TMA or shared-memory visibility.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                The lesson is careful about that last distinction. <code>wgmma.fence</code> is about the WGMMA
+                pipeline itself, especially accumulators and register-resident A fragments. If shared-memory contents
+                were produced through the async proxy path, you still need the right cross-proxy publication rule
+                before consuming them.
+              </p>
+            </section>
+
+            <section class="lesson-chapter" id="stmatrix" data-reveal>
+              <h2><code>stmatrix</code> is how opaque accumulator fragments become a usable tile</h2>
+              <p>
+                When WGMMA finishes, the result is not sitting in registers as a clean row-major matrix. It is
+                fragmented across 128 threads in the exact layout tensor cores use internally. <code>stmatrix</code> is
+                the cooperative store instruction that writes those fragments back to shared memory in a normal matrix
+                layout.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Like <code>ldmatrix</code>, but in reverse</h3>
+                  <p>
+                    Data ownership and address ownership are decoupled. Threads provide the registers they hold and the
+                    addresses required to land those fragments into the correct row-major destination.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Still tile-structured</h3>
+                  <p>
+                    The basic atom is an <code>m8n8</code> matrix tile. Variants like <code>.x4</code> let each thread
+                    contribute four packed registers so larger logical tiles can be serialized out a slice at a time.
+                  </p>
+                </article>
+              </div>
+              <pre class="lesson-pre"><code>// From the repo's matmul_12.cuh epilogue flow
+// convert/pack fragments
+// stmatrix.sync.aligned.m8n8.x4.trans.shared::cta.b16 [...]
+// bar.sync across the warpgroup
+// issue TMA store for the completed tile</code></pre>
+              <h3>FP32 accumulators are the important caveat</h3>
+              <p>
+                <code>stmatrix</code> does not support <code>.f32</code> data. It supports packed <code>.b16</code>
+                and <code>.b8</code> forms. So if WGMMA accumulated into FP32 registers, you cannot feed those
+                registers directly into <code>stmatrix</code>. You first downcast and pack the values, which is why
+                FP32 output paths often include an explicit conversion loop before the shared-memory store.
+              </p>
+              <div class="lesson-note">
+                <p>
+                  <strong>Why the loop exists:</strong> one logical output tile is usually larger than a single
+                  <code>stmatrix.x4</code> call can cover, so the epilogue serializes the accumulator slices, writes
+                  them to shared memory, then hands the tile to a later TMA store path.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="fp8" data-reveal>
+              <h2>FP8 is a transport and layout problem as much as a precision choice</h2>
+              <p>
+                Hopper's FP8 path matters because it changes both math throughput and the operand contract. The lesson
+                frames FP8 as a compressed training format that still accumulates in FP32, but whose range, scaling,
+                packing, and layout decisions can make or break correctness and performance.
+              </p>
+              <table class="lesson-table" aria-label="FP8 format guide">
+                <thead>
+                  <tr>
+                    <th>Format</th>
+                    <th>What it favors</th>
+                    <th>Why it shows up</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>e4m3</code></td>
+                    <td>More mantissa precision, smaller dynamic range.</td>
+                    <td>Common for activations and weights when range is manageable.</td>
+                  </tr>
+                  <tr>
+                    <td><code>e5m2</code></td>
+                    <td>Larger dynamic range, less mantissa precision.</td>
+                    <td>Useful for gradients and paths where magnitude swings are larger.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                Scaling is the escape hatch that keeps 8-bit floating point useful. Tensor-wise, vector-wise, and
+                block-wise schemes all exist because the raw FP8 range is too cramped to trust without a quantization
+                policy. The notes also call out <code>.satfinite</code> conversion forms so out-of-range values clamp
+                instead of exploding into unusable results.
+              </p>
+              <pre class="lesson-pre"><code>// Representative PTX conversion style
+cvt.rn.satfinite.e4m3x2.f16x2 ...
+cvt.rn.satfinite.e5m2x2.f32 ...</code></pre>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3><code>x4</code> packs fill registers</h3>
+                  <p>
+                    <code>e4m3x4</code> and <code>e5m2x4</code> place four FP8 values into one 32-bit register. That
+                    is the natural storage and transport form.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3><code>x2</code> packs match the math path</h3>
+                  <p>
+                    <code>e4m3x2</code> and <code>e5m2x2</code> are 16-bit packed forms that line up with how Hopper
+                    likes to ingest lower-precision math fragments.
+                  </p>
+                </article>
+              </div>
+              <h3>Hopper FP8 WGMMA has stricter operand rules</h3>
+              <p>
+                The course notes call out the fixed <code>m64nNk32</code> FP8 shape and a crucial Hopper limitation:
+                the obvious <code>ldmatrix ... .b8</code> path is not what SM90a exposes here. That is why practical
+                Hopper FP8 kernels tend to use either shared-memory descriptors for both operands or an RS path where A
+                is loaded into registers with ordinary shared loads already packed in the layout WGMMA expects.
+              </p>
+              <p>
+                The same notes also stress the strict K-major rule. Unlike the FP16/BF16 forms, FP8 WGMMA does not
+                give you the same transpose escape hatch. If the staged operand tiles are not already K-major, you pay
+                for extra repacking and synchronization before the tensor cores can consume them.
+              </p>
+              <div class="lesson-note">
+                <p>
+                  <strong>Numerical caution:</strong> even when the documented accumulator type is FP32, the lesson
+                  points to empirical reports that FP8 accumulation can behave like a reduced-precision FP32 variant.
+                  Large K reductions may need K-slicing or staged accumulation to keep error growth under control.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="sparse" data-reveal>
+              <h2>Sparse WGMMA adds a second contract: metadata correctness</h2>
+              <p>
+                Sparse WGMMA is still matrix multiply-accumulate, but the hardware assumes a very specific structured
+                sparsity pattern. The supported model is sparse A times dense B. A carries the compressed data plus the
+                metadata that tells tensor cores where the surviving values belong.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3><code>sp_meta</code></h3>
+                  <p>
+                    A packed register containing the position metadata for the surviving elements. For 2:4 sparsity,
+                    it records which two indices out of each quartet remain.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3><code>sp_sel</code></h3>
+                  <p>
+                    A selector telling hardware which threads are responsible for presenting metadata for the current
+                    instruction shape. If that selector does not match the actual loader strategy, the tensor core reads
+                    the wrong metadata.
+                  </p>
+                </article>
+              </div>
+              <table class="lesson-table" aria-label="Sparse WGMMA selector rules">
+                <thead>
+                  <tr>
+                    <th>Case</th>
+                    <th>Selector rule from the notes</th>
+                    <th>Why it matters</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>FP16 / BF16 sparse</td>
+                    <td><code>sp_sel</code> can choose either contributing thread pair.</td>
+                    <td>Lets you match the selector to where the metadata was actually loaded.</td>
+                  </tr>
+                  <tr>
+                    <td>FP8 / INT8 sparse</td>
+                    <td><code>sp_sel</code> must be <code>0</code>.</td>
+                    <td>The notes treat any other value as undefined for these shapes.</td>
+                  </tr>
+                  <tr>
+                    <td>Replicated metadata loaders</td>
+                    <td>Use the simple selector and broadcast the same metadata to the relevant threads.</td>
+                    <td>Reduces the chance of misaligned metadata ownership.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                The physical sparsity rule is 2:4. You do not just drop two values and hope for the best. You must
+                store the survivors plus enough metadata for hardware to reconstruct their original positions inside each
+                quartet. Wrong metadata does not degrade gracefully. It simply makes the tensor-core read the wrong
+                sparse pattern.
+              </p>
+            </section>
+
+            <section class="lesson-chapter" id="takeaways" data-reveal>
+              <h2>Practical guidance</h2>
+              <ol>
+                <li><strong>Think in issue windows.</strong> Batch async MMAs into logical groups, then choose a wait depth that preserves overlap instead of collapsing back to full serialization.</li>
+                <li><strong>Drain only when you consume.</strong> Use <code>wait_group 0</code> before reading accumulators, exporting them with <code>stmatrix</code>, or otherwise treating the results as complete.</li>
+                <li><strong>Separate register ordering from memory visibility.</strong> <code>wgmma.fence</code> is not a substitute for the async proxy publication rules used by TMA-backed pipelines.</li>
+                <li><strong>Treat FP8 as a layout contract.</strong> Scaling, packing, K-major staging, and conversion policy matter as much as the nominal data type.</li>
+                <li><strong>Never hand-wave sparse metadata.</strong> Sparse tensor cores only work when the payload and selector logic match exactly.</li>
+              </ol>
+              <h3>Glossary</h3>
+              <table class="lesson-table" aria-label="Lesson 7 glossary">
+                <tbody>
+                  <tr>
+                    <th><code>wgmma.commit_group</code></th>
+                    <td>Closes the current batch of async MMAs so hardware can track it as one committed group.</td>
+                  </tr>
+                  <tr>
+                    <th><code>wgmma.wait_group</code></th>
+                    <td>Wait primitive that limits how many committed WGMMA groups remain in flight.</td>
+                  </tr>
+                  <tr>
+                    <th><code>stmatrix</code></th>
+                    <td>Cooperative matrix store instruction that writes tensor-core fragments from registers back to shared memory.</td>
+                  </tr>
+                  <tr>
+                    <th><code>e4m3</code> / <code>e5m2</code></th>
+                    <td>Hopper's two FP8 floating-point formats, trading mantissa precision against dynamic range.</td>
+                  </tr>
+                  <tr>
+                    <th><code>sp_meta</code></th>
+                    <td>Packed metadata telling sparse tensor cores where the surviving nonzero values from sparse A belong.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="lesson-chapter" id="continue" data-reveal>
+              <h2>Continue the course</h2>
+              <p>
+                Lesson 7 completes the WGMMA instruction model. The next lesson zooms out from one primitive to the
+                whole kernel: arithmetic intensity, warp specialization, circular buffers, persistent scheduling, and
+                the pipeline shapes that keep Hopper busy for full GEMMs.
+              </p>
+              <div class="lesson-resource-grid">
+                <a class="lesson-resource-card" href="lesson-8.html">
+                  <span class="lesson-resource-label">Next Lesson</span>
+                  <h3>Kernel Design</h3>
+                  <p>Move from WGMMA mechanics into ping-pong versus cooperative pipelines, scheduling, and epilogue design.</p>
+                </a>
+                <a class="lesson-resource-card" href="../files/fast.cu/examples/matmul/matmul_12.cuh" target="_blank" rel="noreferrer">
+                  <span class="lesson-resource-label">Code Anchor</span>
+                  <h3>matmul_12.cuh</h3>
+                  <p>See <code>wgmma.fence</code>, commit and wait helpers, the <code>stmatrix</code> epilogue loop, and TMA store handoff in one kernel.</p>
+                </a>
+                <a class="lesson-resource-card" href="../files/sm90_mma_tma_gmma_rs_warpspecialized.hpp" target="_blank" rel="noreferrer">
+                  <span class="lesson-resource-label">Code Anchor</span>
+                  <h3>RS WGMMA Mainloop</h3>
+                  <p>Open the register-sourced SM90 path that makes the FP8 and layout discussion concrete inside a production kernel shape.</p>
+                </a>
+                <a class="lesson-resource-card" href="../index.html#explore">
+                  <span class="lesson-resource-label">Explore</span>
+                  <h3>Back to Lesson Dossiers</h3>
+                  <p>Return to the homepage and keep moving through the integrated site-native lesson pages.</p>
+                </a>
+              </div>
+            </section>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <nav class="footer-nav" aria-label="Footer">
+        <a href="../index.html#top">Home</a>
+        <a href="../index.html#lessons">Lessons</a>
+        <a href="../index.html#explore">Explore</a>
+        <a href="../index.html#visuals">Visuals</a>
+        <a href="../slides.html">Slides</a>
+      </nav>
+      <p>CUDA Programming for NVIDIA H100s</p>
+      <p>Prateek Shukla</p>
+    </footer>
+
+    <script src="../script.js"></script>
+  </body>
+</html>

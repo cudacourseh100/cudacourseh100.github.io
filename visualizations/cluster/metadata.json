@@ -1,0 +1,5 @@
+{
+  "name": "DGX H100 SuperPOD Visualizer",
+  "description": "A high-fidelity technical visualization of the NVIDIA DGX H100 SuperPOD 127-node cluster, featuring Rail-Optimized topology, physical rack layouts, and granular port mapping.",
+  "requestFramePermissions": []
+}

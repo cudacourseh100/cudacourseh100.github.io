@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Lesson 1 of CUDA Programming for NVIDIA H100s: Hopper architecture, memory hierarchy, execution model, Tensor Cores, and asynchronous thinking."
+    >
+    <meta name="theme-color" content="#08111d">
+    <title>Lesson 1 | Introduction to H100s</title>
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Urbanist:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="../styles.css">
+  </head>
+  <body class="lesson-view lesson-view-architecture">
+    <header class="site-header">
+      <a class="header-mark" href="../index.html#top" aria-label="CUDA Programming for NVIDIA H100s">
+        <span>Prateek Shukla</span>
+        <span>CUDA Programming for NVIDIA H100s</span>
+      </a>
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="site-nav"
+        aria-label="Open navigation"
+      >
+        <span class="nav-toggle-label">Menu</span>
+        <span class="nav-toggle-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Lesson navigation">
+        <a href="#overview">Overview</a>
+        <a href="#async">Async Model</a>
+        <a href="#memory">Memory</a>
+        <a href="#execution">Execution</a>
+        <a href="#takeaways">Takeaways</a>
+        <a href="../index.html#explore">Explore</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="lesson-hero">
+        <div class="section-shell lesson-hero-grid">
+          <div class="lesson-hero-copy">
+            <p class="hero-credit">Explore Here / Lesson 01</p>
+            <h1 class="lesson-hero-title">Introduction to H100s</h1>
+            <p class="lesson-hero-summary">
+              Hopper is not just a bigger throughput number. It is a machine built around overlap: asynchronous
+              movement, specialized execution paths, aggressive data staging, and a hierarchy that only becomes useful
+              once you can see how memory and math keep each other fed.
+            </p>
+            <div class="lesson-chip-list" aria-label="Lesson 1 topics">
+              <span class="lesson-chip">Hopper</span>
+              <span class="lesson-chip">TMA</span>
+              <span class="lesson-chip">Memory Hierarchy</span>
+              <span class="lesson-chip">Tensor Cores</span>
+              <span class="lesson-chip">SMSPs</span>
+            </div>
+            <div class="hero-actions">
+              <a
+                class="button button-primary"
+                href="../H100-Course/slides/1. Introduction to H100.pdf"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Slide Deck
+              </a>
+              <a class="button button-secondary" href="../index.html#explore">Back to Explore</a>
+            </div>
+          </div>
+
+          <aside class="lesson-meta-card" data-reveal>
+            <p class="lesson-meta-eyebrow">What This Page Is For</p>
+            <h2>Read Hopper as a machine before reading it as a kernel target.</h2>
+            <p>
+              Lesson 1 establishes the mental model the rest of the course depends on: where data lives, how work gets
+              issued, why overlap matters, and why later primitives like TMA and WGMMA are consequences of the
+              architecture rather than disconnected tricks.
+            </p>
+            <dl class="lesson-facts">
+              <div>
+                <dt>Course Position</dt>
+                <dd>Lesson 01 of 10</dd>
+              </div>
+              <div>
+                <dt>Main Shift</dt>
+                <dd>Issue and completion are no longer the same mental event.</dd>
+              </div>
+              <div>
+                <dt>Companion Deck</dt>
+                <dd><code>1. Introduction to H100.pdf</code></dd>
+              </div>
+              <div>
+                <dt>Next Lesson</dt>
+                <dd>Clusters, DSMEM, inline PTX, and address spaces.</dd>
+              </div>
+            </dl>
+          </aside>
+        </div>
+      </section>
+
+      <section class="lesson-body">
+        <div class="section-shell lesson-layout">
+          <aside class="lesson-sidebar">
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">On This Page</p>
+              <nav class="lesson-side-nav" aria-label="Lesson 1 sections">
+                <a href="#overview">What the H100 is</a>
+                <a href="#specs">Headline specs</a>
+                <a href="#async">Asynchronous execution</a>
+                <a href="#memory">Memory hierarchy</a>
+                <a href="#execution">SMs, warps, and Tensor Cores</a>
+                <a href="#takeaways">Optimization takeaways</a>
+                <a href="#continue">Continue the course</a>
+              </nav>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Key Takeaways</p>
+              <ul class="lesson-mini-list">
+                <li>Hopper performance is about feeding compute, not just launching more math.</li>
+                <li>TMA and WGMMA only make sense once the memory path and execution hierarchy are clear.</li>
+                <li>Registers, shared memory, L2, and warp scheduling create the real optimization surface.</li>
+              </ul>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Companion Links</p>
+              <a class="lesson-text-link" href="../slides.html">Browse All Slides</a>
+              <a class="lesson-text-link" href="../index.html#code">Jump to Code Anchors</a>
+              <a class="lesson-text-link" href="lesson-2.html">Open Lesson 2</a>
+            </div>
+          </aside>
+
+          <article class="lesson-article">
+            <section class="lesson-chapter" id="overview" data-reveal>
+              <h2>What the H100 is</h2>
+              <p>
+                The NVIDIA H100 is a Hopper-generation data-center GPU built for large-scale AI training, inference,
+                HPC, and data analytics. The reason it matters in this course is not simply that it is faster than older
+                GPUs. Hopper changes how high-performance kernels are structured by making asynchronous movement,
+                specialized data paths, and overlap-first execution part of normal programming practice.
+              </p>
+              <p>
+                That makes the right mental model less like “one more CUDA device” and more like “a machine with
+                multiple memory tiers, explicit staging surfaces, and execution hardware that rewards keeping the next
+                tile in flight while the current one is still doing work.”
+              </p>
+              <div class="lesson-note">
+                <p>
+                  <strong>Working mental model:</strong> H100 performance comes from matching the right math path
+                  (Tensor Cores vs. regular cores), the right data path (TMA, cache, shared memory, registers), and the
+                  right execution strategy (overlap memory movement with compute).
+                </p>
+              </div>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Transformer-heavy workloads</h3>
+                  <p>
+                    Hopper adds a dedicated Transformer Engine and stronger low-precision math paths, especially FP8,
+                    because modern training and inference workloads are dominated by dense tensor operations.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Overlap over blocking</h3>
+                  <p>
+                    The architecture rewards fetching the next tile while the current tile is still being processed,
+                    which changes how kernels are designed, scheduled, and synchronized.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Specialization everywhere</h3>
+                  <p>
+                    TMA, Tensor Cores, LSUs, SFUs, and schedulers each own distinct parts of the throughput story. The
+                    best kernels route work through those paths intentionally.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Scale beyond one GPU</h3>
+                  <p>
+                    NVLink and NVSwitch matter because frontier workloads are distributed. The course treats that
+                    systems context as part of the architecture, not an optional appendix.
+                  </p>
+                </article>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="specs" data-reveal>
+              <h2>Headline specs</h2>
+              <p>
+                The exact numbers vary by SKU and form factor, but the lesson material uses these figures to anchor the
+                engineering discussion.
+              </p>
+              <table class="lesson-table" aria-label="Headline H100 specs">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Details</th>
+                    <th>Why it matters</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Architecture</td>
+                    <td>Hopper</td>
+                    <td>Introduces stronger asynchronous movement, Transformer Engine support, and new Tensor Core paths.</td>
+                  </tr>
+                  <tr>
+                    <td>Memory</td>
+                    <td>80 GB HBM3, around 3.35 TB/s in the lesson deck</td>
+                    <td>High bandwidth is essential for feeding matrix-heavy AI workloads without starving compute.</td>
+                  </tr>
+                  <tr>
+                    <td>SM count</td>
+                    <td>132 streaming multiprocessors in the lesson material</td>
+                    <td>SMs are the execution surfaces that run thread blocks and expose the memory and math hierarchy.</td>
+                  </tr>
+                  <tr>
+                    <td>Tensor Cores</td>
+                    <td>528 total, 4 per SM in the lesson framing</td>
+                    <td>These are the fast path for dense matrix multiply-accumulate operations.</td>
+                  </tr>
+                  <tr>
+                    <td>L2 cache</td>
+                    <td>50 MB</td>
+                    <td>L2 mediates traffic between SMs and HBM, smoothing data flow and reducing wasted bandwidth.</td>
+                  </tr>
+                  <tr>
+                    <td>Interconnect</td>
+                    <td>4th-gen NVLink support with NVSwitch platform context</td>
+                    <td>Critical for scaling training systems beyond one accelerator.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="lesson-chapter" id="async" data-reveal>
+              <h2>Asynchronous execution is the first real shift</h2>
+              <p>
+                The course emphasizes the biggest conceptual change immediately: Hopper is designed to keep compute busy
+                by decoupling request from completion. Each SM includes a Tensor Memory Accelerator, and that matters
+                because it offloads tensor-shaped movement from the main execution resources.
+              </p>
+              <h3>Synchronous vs. asynchronous copies</h3>
+              <p>
+                A synchronous copy blocks the issuing thread or warp until the transfer finishes. That is easy to reason
+                about, but it wastes issue bandwidth whenever memory latency dominates. An asynchronous copy starts the
+                transfer and lets other useful work continue while the data moves in the background.
+              </p>
+              <p>
+                This is what makes pipelined kernels possible. Tile <code>i</code> can be in compute while tile
+                <code>i+1</code> is already on the way, which is exactly the pattern later lessons build around with
+                TMA, barriers, and WGMMA.
+              </p>
+              <h3>Why TMA matters</h3>
+              <ul>
+                <li>It reduces the per-thread overhead of global-memory-to-shared-memory movement.</li>
+                <li>It handles shape, stride, and bounds behavior in hardware instead of forcing scalarized movement logic.</li>
+                <li>It frees more SM execution bandwidth for actual math.</li>
+                <li>It makes producer-consumer pipelines cleaner and more scalable for GEMM-style kernels.</li>
+              </ul>
+              <div class="lesson-note">
+                <p>
+                  <strong>Trade-off:</strong> asynchronous systems increase bookkeeping complexity. You need to reason
+                  about staging, dependency points, and when data becomes safe to consume.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="memory" data-reveal>
+              <h2>The memory hierarchy is the real pipeline</h2>
+              <p>
+                A practical way to read H100 memory is as a staged path:
+                <strong>HBM3 -&gt; L2 cache -&gt; L1/shared memory -&gt; registers.</strong> Performance depends on moving
+                data down this hierarchy efficiently and minimizing how often kernels have to pay off-chip costs.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>HBM3</h3>
+                  <p>
+                    Large off-chip device memory with huge bandwidth, but still much higher latency and energy cost than
+                    on-chip storage. Coalescing and access regularity still matter.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>L2 cache</h3>
+                  <p>
+                    A 50 MB shared traffic manager between SMs and HBM. It can absorb messy accesses and reorganize
+                    them into more efficient memory transactions.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Shared memory + L1</h3>
+                  <p>
+                    The on-chip staging surface where tiles live during compute. It is banked, capacity-limited, and one
+                    of the most valuable resources in a high-performance kernel.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Registers</h3>
+                  <p>
+                    The fastest storage per thread and a common bottleneck. Too many registers reduce occupancy and can
+                    spill values into slower memory.
+                  </p>
+                </article>
+              </div>
+              <h3>What each level changes</h3>
+              <ul>
+                <li>HBM bandwidth matters, but coalescing still decides how much of it you actually get.</li>
+                <li>L2 can hide some irregularity, but it is not a substitute for deliberate layout choices.</li>
+                <li>Shared memory lowers latency and enables reuse, but bank conflicts and capacity trade-offs remain central.</li>
+                <li>Register pressure can silently reduce active warp count enough to hurt performance.</li>
+              </ul>
+            </section>
+
+            <section class="lesson-chapter" id="execution" data-reveal>
+              <h2>SMs, Tensor Cores, warps, and dispatch</h2>
+              <p>
+                The SM is the core execution unit of the GPU. It runs thread blocks, holds local storage, and contains
+                the math and memory units that actually execute instructions.
+              </p>
+              <h3>Tensor Cores and WGMMA</h3>
+              <p>
+                Hopper includes fourth-generation Tensor Cores, and one of the most important programming-model changes
+                is that matrix math is no longer always a single-warp story. With WGMMA, four warps coordinate on one
+                matrix multiply-accumulate operation, turning tensor-core issue into a 128-thread coordination problem.
+              </p>
+              <ul>
+                <li>Matrix A can come from shared memory or registers, depending on the form.</li>
+                <li>Matrix B is commonly treated as shared-memory sourced in the course framing.</li>
+                <li>Matrix C accumulators are distributed across four warps in registers.</li>
+                <li>FP16 and FP8 values are packed into 32-bit registers for tensor-core issue.</li>
+              </ul>
+              <h3>SM anatomy</h3>
+              <p>
+                Each SM contains FP32, INT32, FP64, Tensor Core, LSU, SFU, register, cache, scheduler, and dispatch
+                resources. It is also partitioned into four SMSPs, each with its own local issue path.
+              </p>
+              <h3>Warps and schedulers</h3>
+              <p>
+                A warp is the 32-thread unit the scheduler reasons about each cycle. The scheduler selects ready warps
+                using scoreboarding and dependency tracking, while the dispatch unit launches work into the execution
+                pipelines. This is why “ready” is not just about having instructions to run. Data and pipeline
+                availability have to line up too.
+              </p>
+              <div class="lesson-note">
+                <p>
+                  <strong>Practical implication:</strong> block sizes that map cleanly into multiple warps, especially
+                  multiples of four warps such as 128 threads, often balance more naturally across the four SMSPs.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="takeaways" data-reveal>
+              <h2>Optimization takeaways</h2>
+              <ol>
+                <li><strong>Design around overlap.</strong> Serialized load-then-compute thinking leaves throughput on the table.</li>
+                <li><strong>Use Tensor Cores intentionally.</strong> The fastest path depends on datatype, layout, and staging choices.</li>
+                <li><strong>Watch register pressure.</strong> A tiny increase can drop occupancy enough to move the whole kernel backwards.</li>
+                <li><strong>Treat shared memory as a budget.</strong> It is powerful, but over-allocating it changes occupancy and cache behavior.</li>
+                <li><strong>Size blocks to the machine.</strong> Thread-block geometry should reflect warp organization and SM sub-partitioning.</li>
+                <li><strong>Expect specialization.</strong> Hopper rewards routing work through the right hardware path instead of a generic fallback.</li>
+              </ol>
+              <h3>Glossary</h3>
+              <table class="lesson-table" aria-label="Glossary of H100 terms">
+                <tbody>
+                  <tr>
+                    <th>TMA</th>
+                    <td>Tensor Memory Accelerator, hardware support for asynchronous tensor and tile movement.</td>
+                  </tr>
+                  <tr>
+                    <th>SM</th>
+                    <td>Streaming Multiprocessor, the main execution block that runs thread blocks.</td>
+                  </tr>
+                  <tr>
+                    <th>SMSP</th>
+                    <td>An SM sub-partition with its own scheduler and dispatch resources.</td>
+                  </tr>
+                  <tr>
+                    <th>WGMMA</th>
+                    <td>Warp Group Matrix Multiply Accumulate, tensor-core issue involving four warps together.</td>
+                  </tr>
+                  <tr>
+                    <th>HBM3</th>
+                    <td>High-bandwidth off-chip device memory used as the GPU's main large-capacity memory tier.</td>
+                  </tr>
+                  <tr>
+                    <th>NVLink</th>
+                    <td>High-bandwidth GPU interconnect used in multi-GPU systems.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="lesson-chapter" id="continue" data-reveal>
+              <h2>Continue the course</h2>
+              <p>
+                Lesson 1 gives the machine shape. Lesson 2 moves into the mechanisms Hopper code actually uses:
+                clusters, DSMEM, inline PTX, and the pointer conversions that make low-level memory operations correct.
+              </p>
+              <div class="lesson-resource-grid">
+                <a class="lesson-resource-card" href="lesson-2.html">
+                  <span class="lesson-resource-label">Next Lesson</span>
+                  <h3>Clusters and PTX</h3>
+                  <p>Thread block clusters, distributed shared memory, inline PTX, state spaces, and address conversion.</p>
+                </a>
+                <a class="lesson-resource-card" href="../slides.html">
+                  <span class="lesson-resource-label">Course Material</span>
+                  <h3>All Slide Decks</h3>
+                  <p>Browse the complete lecture sequence when you want the whole staircase, not just one entry page.</p>
+                </a>
+                <a class="lesson-resource-card" href="../index.html#code">
+                  <span class="lesson-resource-label">Code Reality</span>
+                  <h3>Code Anchors</h3>
+                  <p>Jump back into the homepage section that maps these ideas onto CUTLASS and custom Hopper kernels.</p>
+                </a>
+              </div>
+            </section>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <nav class="footer-nav" aria-label="Footer">
+        <a href="../index.html#top">Home</a>
+        <a href="../index.html#lessons">Lessons</a>
+        <a href="../index.html#explore">Explore</a>
+        <a href="../index.html#visuals">Visuals</a>
+        <a href="../slides.html">Slides</a>
+      </nav>
+      <p>CUDA Programming for NVIDIA H100s</p>
+      <p>Prateek Shukla</p>
+    </footer>
+
+    <script src="../script.js"></script>
+  </body>
+</html>

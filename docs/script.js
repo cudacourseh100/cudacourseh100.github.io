@@ -460,6 +460,108 @@ function initPipelineShowcase() {
   renderConcept(0);
 }
 
+function initSidebarScrollSpy() {
+  const sideNav = document.querySelector(".lesson-side-nav");
+
+  if (!sideNav) {
+    return;
+  }
+
+  const navLinks = [...sideNav.querySelectorAll("a[href^='#']")];
+
+  if (navLinks.length === 0) {
+    return;
+  }
+
+  const sections = navLinks
+    .map((link) => {
+      const id = link.getAttribute("href").slice(1);
+      const section = document.getElementById(id);
+      return section ? { link, section } : null;
+    })
+    .filter(Boolean);
+
+  if (sections.length === 0) {
+    return;
+  }
+
+  let currentActive = null;
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      let topMost = null;
+      let topMostY = Infinity;
+
+      sections.forEach(({ section }) => {
+        const rect = section.getBoundingClientRect();
+
+        if (rect.top < window.innerHeight * 0.4 && rect.bottom > 0) {
+          if (rect.top < topMostY) {
+            topMostY = rect.top;
+            topMost = section;
+          }
+        }
+      });
+
+      if (!topMost) {
+        return;
+      }
+
+      const match = sections.find((s) => s.section === topMost);
+
+      if (match && match.link !== currentActive) {
+        if (currentActive) {
+          currentActive.classList.remove("is-active");
+        }
+
+        match.link.classList.add("is-active");
+        currentActive = match.link;
+      }
+    },
+    { threshold: 0, rootMargin: "-40% 0px -40% 0px" },
+  );
+
+  sections.forEach(({ section }) => observer.observe(section));
+
+  // Also update on scroll for more responsive feel
+  let scrollTicking = false;
+
+  window.addEventListener("scroll", () => {
+    if (scrollTicking) {
+      return;
+    }
+
+    scrollTicking = true;
+    requestAnimationFrame(() => {
+      let topMost = null;
+      let topMostY = Infinity;
+
+      sections.forEach(({ link, section }) => {
+        const rect = section.getBoundingClientRect();
+
+        if (rect.top <= window.innerHeight * 0.4 && rect.bottom > 0) {
+          if (rect.top < topMostY || (rect.top <= 0 && Math.abs(rect.top) < Math.abs(topMostY))) {
+            topMostY = rect.top;
+            topMost = link;
+          }
+        }
+      });
+
+      if (topMost && topMost !== currentActive) {
+        if (currentActive) {
+          currentActive.classList.remove("is-active");
+        }
+
+        topMost.classList.add("is-active");
+        currentActive = topMost;
+      }
+
+      scrollTicking = false;
+    });
+  }, { passive: true });
+}
+
 initMobileNav();
 initRevealAnimations();
 initPipelineShowcase();
+initSidebarScrollSpy();

@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Lesson 4 of CUDA Programming for NVIDIA H100s: cuTensorMap, Hopper TMA, descriptor fields, swizzling, interleaving, L2 promotion, and out-of-bounds fill."
+    >
+    <meta name="theme-color" content="#08111d">
+    <title>Lesson 4 | cuTensorMap</title>
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Urbanist:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="../styles.css">
+  </head>
+  <body class="lesson-view lesson-view-tma">
+    <header class="site-header">
+      <a class="header-mark" href="../index.html#top" aria-label="CUDA Programming for NVIDIA H100s">
+        <span>Prateek Shukla</span>
+        <span>CUDA Programming for NVIDIA H100s</span>
+      </a>
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="site-nav"
+        aria-label="Open navigation"
+      >
+        <span class="nav-toggle-label">Menu</span>
+        <span class="nav-toggle-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Lesson navigation">
+        <a href="#overview">Overview</a>
+        <a href="#descriptor">Descriptor</a>
+        <a href="#fields">Fields</a>
+        <a href="#swizzle">Swizzle</a>
+        <a href="#takeaways">Takeaways</a>
+        <a href="../index.html#explore">Explore</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="lesson-hero">
+        <div class="section-shell lesson-hero-grid">
+          <div class="lesson-hero-copy">
+            <p class="hero-credit">Explore Here / Lesson 04</p>
+            <h1 class="lesson-hero-title">cuTensorMap</h1>
+            <p class="lesson-hero-summary">
+              Lesson 4 is the descriptor lesson. Hopper TMA only becomes truly asynchronous because the transfer state
+              is encoded up front: base pointer, dimensions, strides, element traversal, swizzle, interleave, L2 fetch
+              policy, and out-of-bounds behavior all become one reusable object the hardware can execute against.
+            </p>
+            <div class="lesson-chip-list" aria-label="Lesson 4 topics">
+              <span class="lesson-chip">CUtensorMap</span>
+              <span class="lesson-chip">TMA</span>
+              <span class="lesson-chip">Swizzle</span>
+              <span class="lesson-chip">Interleave</span>
+              <span class="lesson-chip">L2 Promotion</span>
+            </div>
+            <div class="hero-actions">
+              <a
+                class="button button-primary"
+                href="../H100-Course/slides/4. cuTensorMap.pdf"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Slide Deck
+              </a>
+              <a class="button button-secondary" href="../index.html#explore">Back to Explore</a>
+            </div>
+          </div>
+
+          <aside class="lesson-meta-card" data-reveal>
+            <p class="lesson-meta-eyebrow">What Changes Here</p>
+            <h2>Address arithmetic stops living in the instruction stream and moves into metadata.</h2>
+            <p>
+              This lesson explains why Hopper TMA is not just "a faster copy." It is a descriptor-driven movement path
+              whose performance and correctness depend on encoding tensor structure, layout policy, and fetch behavior
+              before the async operation begins.
+            </p>
+            <dl class="lesson-facts">
+              <div>
+                <dt>Course Position</dt>
+                <dd>Lesson 04 of 10</dd>
+              </div>
+              <div>
+                <dt>Main Shift</dt>
+                <dd>Movement becomes a first-class object with an explicit contract.</dd>
+              </div>
+              <div>
+                <dt>Companion Deck</dt>
+                <dd><code>4. cuTensorMap.pdf</code></dd>
+              </div>
+              <div>
+                <dt>Code Anchor</dt>
+                <dd><code>fast.cu/examples/matmul/matmul_12.cuh</code></dd>
+              </div>
+            </dl>
+          </aside>
+        </div>
+      </section>
+
+      <section class="lesson-body">
+        <div class="section-shell lesson-layout">
+          <aside class="lesson-sidebar">
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">On This Page</p>
+              <nav class="lesson-side-nav" aria-label="Lesson 4 sections">
+                <a href="#overview">What TMA changes</a>
+                <a href="#descriptor">What the descriptor contains</a>
+                <a href="#fields">Field-by-field rules</a>
+                <a href="#swizzle">Swizzle and interleave</a>
+                <a href="#l2">L2 promotion and OOB fill</a>
+                <a href="#takeaways">Practical guidance</a>
+                <a href="#continue">Continue the course</a>
+              </nav>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Key Takeaways</p>
+              <ul class="lesson-mini-list">
+                <li>Descriptors are what let Hopper launch one async transfer and let hardware do the rest.</li>
+                <li>Dimensions, element strides, byte strides, and box dimensions are not interchangeable units.</li>
+                <li>Swizzle, interleave, L2 promotion, and OOB fill are performance and correctness knobs, not decoration.</li>
+              </ul>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Companion Links</p>
+              <a class="lesson-text-link" href="lesson-3.html">Back to Lesson 3</a>
+              <a class="lesson-text-link" href="lesson-5.html">Open Lesson 5</a>
+              <a class="lesson-text-link" href="../files/fast.cu/examples/matmul/matmul_12.cuh" target="_blank" rel="noreferrer">Open Descriptor Code Anchor</a>
+              <a class="lesson-text-link" href="../slides.html">Browse All Slides</a>
+            </div>
+          </aside>
+
+          <article class="lesson-article">
+            <section class="lesson-chapter" id="overview" data-reveal>
+              <h2>What TMA changes</h2>
+              <p>
+                TMA is Hopper's hardware path for large asynchronous tensor copies between global memory and shared
+                memory. Instead of tying movement to per-thread address generation, Hopper lets one launching thread
+                describe the transfer and then continue executing while hardware handles the operation in the background.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Before descriptor-driven movement</h3>
+                  <p>
+                    Threads participate heavily in address generation, copies fragment into smaller pieces, and the SM
+                    stays tethered to the mechanics of movement.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>With Hopper TMA</h3>
+                  <p>
+                    One instruction plus a descriptor can describe a whole tile transfer while the hardware handles the
+                    movement path mostly on its own.
+                  </p>
+                </article>
+              </div>
+              <p>
+                That is why the lesson keeps returning to descriptors. Hopper's asynchronous machine works because
+                layout knowledge is encoded ahead of time rather than recomputed by the issuing threads every time.
+              </p>
+              <div class="lesson-note">
+                <p>
+                  <strong>Core idea:</strong> <code>CUtensorMap</code> shifts transfer state out of the instruction
+                  stream and into a reusable 128-byte metadata object that the TMA hardware can execute against.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="descriptor" data-reveal>
+              <h2>What the descriptor contains</h2>
+              <p>
+                A <code>CUtensorMap</code> is created on the host, encoded with the CUDA Driver API, and then used by
+                the runtime path that issues TMA instructions. Conceptually it answers three questions: where the tensor
+                lives, how it is laid out, and how the hardware should move it.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Addressing metadata</h3>
+                  <p>Base pointer, rank, global dimensions, and byte strides define the source tensor in memory.</p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Traversal metadata</h3>
+                  <p>Box dimensions and element strides define the tile size and per-dimension movement behavior.</p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Layout and policy metadata</h3>
+                  <p>Data type, swizzle, interleave, L2 promotion, and OOB fill shape how the transfer behaves.</p>
+                </article>
+              </div>
+              <h3>Encoding workflow</h3>
+              <ol>
+                <li>Create a <code>CUtensorMap</code> object in host memory.</li>
+                <li>Encode it with the CUDA Driver API, typically with <code>cuTensorMapEncodeTiled(...)</code>.</li>
+                <li>Pass the encoded descriptor to the path that will launch TMA-backed movement.</li>
+              </ol>
+              <pre class="lesson-pre"><code>CUtensorMap tma_desc;
+// host-side descriptor object, 128 bytes, 128B aligned
+
+// encode with CUDA Driver API
+// cuTensorMapEncodeTiled(&amp;tma_desc, ...);</code></pre>
+            </section>
+
+            <section class="lesson-chapter" id="fields" data-reveal>
+              <h2>Field-by-field rules that matter</h2>
+              <p>
+                The easiest way to break a tensor map is to blur units and invariants. The lesson material is very clear
+                that some fields are expressed in elements, some in bytes, and some carry alignment constraints that
+                depend on datatype or interleave mode.
+              </p>
+              <table class="lesson-table" aria-label="cuTensorMap field guide">
+                <thead>
+                  <tr>
+                    <th>Field</th>
+                    <th>Meaning</th>
+                    <th>Unit / constraint</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Data type</td>
+                    <td>Defines how the source tensor is interpreted and what alignment / size rules apply.</td>
+                    <td>Type enum such as FP16, BF16, FP32, TF32, integers.</td>
+                  </tr>
+                  <tr>
+                    <td>Rank</td>
+                    <td>Number of tensor dimensions, not matrix rank.</td>
+                    <td>Notes frame supported movement across 1D to 5D tensor copies.</td>
+                  </tr>
+                  <tr>
+                    <td>Global address</td>
+                    <td>Base device pointer in HBM.</td>
+                    <td>16B aligned baseline, stricter when interleaving is enabled.</td>
+                  </tr>
+                  <tr>
+                    <td><code>globalDim</code></td>
+                    <td>Extent of each tensor dimension.</td>
+                    <td>Measured in elements.</td>
+                  </tr>
+                  <tr>
+                    <td><code>globalStrides</code></td>
+                    <td>Distance to move across higher dimensions in source memory.</td>
+                    <td>Measured in bytes.</td>
+                  </tr>
+                  <tr>
+                    <td><code>elementStrides</code></td>
+                    <td>Logical step size for traversal during the async copy.</td>
+                    <td>Measured in elements, array size equals rank.</td>
+                  </tr>
+                  <tr>
+                    <td><code>boxDim</code></td>
+                    <td>Tile size for one TMA transfer.</td>
+                    <td>Measured in elements, must fit downstream layout assumptions.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="lesson-note">
+                <p>
+                  <strong>Keep this straight:</strong> global dimensions and box dimensions are in elements, while
+                  global strides are in bytes. Losing that distinction is one of the fastest ways to encode the wrong
+                  descriptor.
+                </p>
+              </div>
+              <h3>Datatype and rank</h3>
+              <p>
+                The notes list common types including unsigned integers, signed integers, FP16, BF16, FP32, FP64, and
+                TensorFloat-32 variants. Rank here means tensor dimensionality, not matrix rank from linear algebra.
+              </p>
+              <h3>Alignment and interleave constraints</h3>
+              <p>
+                Interleave modes tighten the address and stride rules. The notes call out 16-byte alignment for 16B
+                interleave, 32-byte alignment for 32B interleave, stride granularity to match, and a dimensionality
+                requirement of at least 3 when interleaving is used.
+              </p>
+            </section>
+
+            <section class="lesson-chapter" id="swizzle" data-reveal>
+              <h2>Swizzle and interleave are how layout becomes hardware-friendly</h2>
+              <p>
+                Swizzle is the shared-memory-side layout transform. Interleave is the source-layout decode in global
+                memory. They are related because Hopper often has to decode a packed source layout and then place the
+                result into a shared-memory arrangement that downstream consumers can read efficiently.
+              </p>
+              <h3>Why swizzling exists</h3>
+              <p>
+                Shared memory has 32 banks. Regular strided layouts can repeatedly hit the same banks and serialize what
+                should have been parallel access. Hopper uses hardware-accelerated address permutation during transfer
+                so the physical placement in shared memory better matches the access pattern of the consuming warps.
+              </p>
+              <table class="lesson-table" aria-label="Swizzle mode overview">
+                <thead>
+                  <tr>
+                    <th>Mode</th>
+                    <th>What changes</th>
+                    <th>Typical use</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>32B</td>
+                    <td>Smallest swizzle span, lower cache-line utilization, narrower tiles.</td>
+                    <td>Very small inner dimensions.</td>
+                  </tr>
+                  <tr>
+                    <td>64B</td>
+                    <td>Better bank spread than 32B but still not the strongest layout protection.</td>
+                    <td>Mid-width tiles.</td>
+                  </tr>
+                  <tr>
+                    <td>128B</td>
+                    <td>Largest common swizzle span, aligned with the main shared-memory / tensor consumption pattern.</td>
+                    <td>Common FP16 / BF16 tensor-core pipelines.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                The notes also distinguish atom size and span. The atom is the indivisible chunk the swizzler moves.
+                The span is the repeat window of the swizzle pattern. That is why the notes highlight the bounding-box
+                constraint: if the inner dimension in bytes exceeds the swizzle span, the pattern repeats and can
+                recreate bank collisions.
+              </p>
+              <h3>Interleave coupling</h3>
+              <p>
+                Some source layouts are physically interleaved, for example NC/8HWC8 or NC/16HWC16 style packing. The
+                interleave mode tells TMA how to decode those chunks. The lesson notes explicitly call out that 32B
+                interleave must pair with 32B swizzle because those hardware paths operate in lockstep.
+              </p>
+            </section>
+
+            <section class="lesson-chapter" id="l2" data-reveal>
+              <h2>L2 promotion and out-of-bounds fill finish the movement contract</h2>
+              <p>
+                The descriptor does not stop at layout. It also controls how aggressively the system fetches into L2 and
+                what value the destination should receive when a tile extends beyond the valid tensor boundary.
+              </p>
+              <h3>L2 promotion</h3>
+              <table class="lesson-table" aria-label="L2 promotion guide">
+                <thead>
+                  <tr>
+                    <th>Mode</th>
+                    <th>Meaning</th>
+                    <th>Best fit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>NONE</td>
+                    <td>Use the default smaller fetch behavior.</td>
+                    <td>Sparse or irregular access where over-fetching would waste bandwidth.</td>
+                  </tr>
+                  <tr>
+                    <td>L2_64B</td>
+                    <td>Promote to 64B fetch width.</td>
+                    <td>Moderately dense cases with narrow contiguous width.</td>
+                  </tr>
+                  <tr>
+                    <td>L2_128B</td>
+                    <td>Fetch a full cache line in one shot.</td>
+                    <td>Common dense GEMM or convolution-style pipelines.</td>
+                  </tr>
+                  <tr>
+                    <td>L2_256B</td>
+                    <td>Fetch two full cache lines logically together.</td>
+                    <td>Highly dense workloads with immediate reuse and enough locality to justify cache space.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                The lesson's rule of thumb is simple: dense GEMM and convolution often benefit from 128B or 256B
+                promotion, while sparse lookups usually do better with no promotion to avoid fetching neighbors that
+                will never be touched.
+              </p>
+              <h3>Out-of-bounds fill</h3>
+              <p>
+                Edge tiles still need to move. OOB fill lets the transfer continue without manual per-element guards by
+                synthesizing destination values for out-of-range positions while leaving the source tensor in HBM
+                unchanged.
+              </p>
+              <ul>
+                <li>Zero fill is useful for padding and clean boundary math.</li>
+                <li>NaN-related fill modes are useful for debugging or specialized behavior.</li>
+                <li>This simplifies tiled kernels that naturally extend beyond tensor edges.</li>
+              </ul>
+            </section>
+
+            <section class="lesson-chapter" id="takeaways" data-reveal>
+              <h2>Practical guidance</h2>
+              <ol>
+                <li><strong>Get the descriptor math right first.</strong> Rank, dimensions, and byte strides must describe the real tensor.</li>
+                <li><strong>Respect alignment rules.</strong> Interleave mode and datatype change what the hardware expects.</li>
+                <li><strong>Choose tile geometry around the consumer.</strong> TMA should feed the compute pattern you actually use downstream.</li>
+                <li><strong>Use swizzle deliberately.</strong> It only helps when it matches the access pattern of the reader.</li>
+                <li><strong>Match L2 promotion to contiguous width.</strong> Dense predictable traffic and sparse lookups want very different fetch behavior.</li>
+              </ol>
+              <h3>Glossary</h3>
+              <table class="lesson-table" aria-label="Lesson 4 glossary">
+                <tbody>
+                  <tr>
+                    <th>TMA</th>
+                    <td>Tensor Memory Accelerator, Hopper's asynchronous tensor copy engine.</td>
+                  </tr>
+                  <tr>
+                    <th><code>CUtensorMap</code></th>
+                    <td>The host-encoded descriptor that teaches TMA how to interpret and move a tensor tile.</td>
+                  </tr>
+                  <tr>
+                    <th>Swizzle</th>
+                    <td>Shared-memory address remapping used to reduce bank conflicts and align with consumer access patterns.</td>
+                  </tr>
+                  <tr>
+                    <th>Interleave</th>
+                    <td>Source-layout decoding for packed global-memory formats.</td>
+                  </tr>
+                  <tr>
+                    <th>L2 promotion</th>
+                    <td>A fetch-width hint that trades bandwidth efficiency against possible cache pollution.</td>
+                  </tr>
+                  <tr>
+                    <th>OOB fill</th>
+                    <td>Destination fill policy used when a TMA tile extends beyond the valid tensor boundary.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="lesson-chapter" id="continue" data-reveal>
+              <h2>Continue the course</h2>
+              <p>
+                Lesson 4 gives TMA its descriptor and layout vocabulary. The next lesson, <code>cp.async.bulk</code>,
+                moves into the instruction family that uses this machinery directly for structured bulk movement,
+                grouping, multicast, and barrier-linked completion.
+              </p>
+              <div class="lesson-resource-grid">
+                <a class="lesson-resource-card" href="lesson-5.html">
+                  <span class="lesson-resource-label">Next Lesson</span>
+                  <h3><code>cp.async.bulk</code></h3>
+                  <p>Continue into bulk async copy instructions, grouping, multicast, and barrier completion semantics.</p>
+                </a>
+                <a class="lesson-resource-card" href="../files/fast.cu/examples/matmul/matmul_12.cuh" target="_blank" rel="noreferrer">
+                  <span class="lesson-resource-label">Code Anchor</span>
+                  <h3>matmul_12.cuh</h3>
+                  <p>See descriptor creation and Hopper-era tensor movement assumptions inside a real kernel path.</p>
+                </a>
+                <a class="lesson-resource-card" href="../index.html#explore">
+                  <span class="lesson-resource-label">Explore</span>
+                  <h3>Back to Lesson Dossiers</h3>
+                  <p>Return to the homepage explore section and move through the integrated lesson pages already in the site.</p>
+                </a>
+              </div>
+            </section>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <nav class="footer-nav" aria-label="Footer">
+        <a href="../index.html#top">Home</a>
+        <a href="../index.html#lessons">Lessons</a>
+        <a href="../index.html#explore">Explore</a>
+        <a href="../index.html#visuals">Visuals</a>
+        <a href="../slides.html">Slides</a>
+      </nav>
+      <p>CUDA Programming for NVIDIA H100s</p>
+      <p>Prateek Shukla</p>
+    </footer>
+
+    <script src="../script.js"></script>
+  </body>
+</html>

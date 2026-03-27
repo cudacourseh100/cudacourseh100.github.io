@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Lesson 2 of CUDA Programming for NVIDIA H100s: clusters, distributed shared memory, inline PTX, state spaces, data types, and pointer conversion."
+    >
+    <meta name="theme-color" content="#08111d">
+    <title>Lesson 2 | Clusters, Data Types, Inline PTX, Pointers</title>
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Urbanist:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="../styles.css">
+  </head>
+  <body class="lesson-view lesson-view-clusters">
+    <header class="site-header">
+      <a class="header-mark" href="../index.html#top" aria-label="CUDA Programming for NVIDIA H100s">
+        <span>Prateek Shukla</span>
+        <span>CUDA Programming for NVIDIA H100s</span>
+      </a>
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="site-nav"
+        aria-label="Open navigation"
+      >
+        <span class="nav-toggle-label">Menu</span>
+        <span class="nav-toggle-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Lesson navigation">
+        <a href="#overview">Overview</a>
+        <a href="#clusters">Clusters</a>
+        <a href="#ptx">PTX</a>
+        <a href="#memory">Memory</a>
+        <a href="#pointers">Pointers</a>
+        <a href="../index.html#explore">Explore</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="lesson-hero">
+        <div class="section-shell lesson-hero-grid">
+          <div class="lesson-hero-copy">
+            <p class="hero-credit">Explore Here / Lesson 02</p>
+            <h1 class="lesson-hero-title">Clusters, Data Types, Inline PTX, Pointers</h1>
+            <p class="lesson-hero-summary">
+              Lesson 2 moves from architecture into mechanism. The focus shifts to cluster residency, distributed shared
+              memory, PTX state spaces, inline PTX constraints, packed datatypes, and the address conversions Hopper
+              code relies on when memory movement stops being generic.
+            </p>
+            <div class="lesson-chip-list" aria-label="Lesson 2 topics">
+              <span class="lesson-chip">Clusters</span>
+              <span class="lesson-chip">DSMEM</span>
+              <span class="lesson-chip">Inline PTX</span>
+              <span class="lesson-chip">State Spaces</span>
+              <span class="lesson-chip">cvta / mapa</span>
+            </div>
+            <div class="hero-actions">
+              <a
+                class="button button-primary"
+                href="../H100-Course/slides/2. Clusters, Data types, inline PTX, State Spaces.pdf"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Slide Deck
+              </a>
+              <a class="button button-secondary" href="../index.html#explore">Back to Explore</a>
+            </div>
+          </div>
+
+          <aside class="lesson-meta-card" data-reveal>
+            <p class="lesson-meta-eyebrow">What Changes Here</p>
+            <h2>High-performance Hopper code stops being generic pointer arithmetic.</h2>
+            <p>
+              This lesson is where the course starts sounding unmistakably Hopper-specific: cluster-level cooperation,
+              remote shared-memory access, instruction-level control through PTX, and the conversion steps needed to map
+              abstract CUDA pointers onto concrete address spaces.
+            </p>
+            <dl class="lesson-facts">
+              <div>
+                <dt>Course Position</dt>
+                <dd>Lesson 02 of 10</dd>
+              </div>
+              <div>
+                <dt>Main Shift</dt>
+                <dd>Memory placement and instruction form become explicit optimization surfaces.</dd>
+              </div>
+              <div>
+                <dt>Companion Deck</dt>
+                <dd><code>2. Clusters, Data types, inline PTX, State Spaces.pdf</code></dd>
+              </div>
+              <div>
+                <dt>Code Anchor</dt>
+                <dd><code>fast.cu/examples/matmul/matmul_12.cuh</code></dd>
+              </div>
+            </dl>
+          </aside>
+        </div>
+      </section>
+
+      <section class="lesson-body">
+        <div class="section-shell lesson-layout">
+          <aside class="lesson-sidebar">
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">On This Page</p>
+              <nav class="lesson-side-nav" aria-label="Lesson 2 sections">
+                <a href="#overview">Overview</a>
+                <a href="#clusters">Thread block clusters</a>
+                <a href="#dsmem">Distributed shared memory</a>
+                <a href="#ptx">PTX and operands</a>
+                <a href="#memory">Addressing and banking</a>
+                <a href="#pointers">Pointers, <code>cvta</code>, and <code>mapa</code></a>
+                <a href="#takeaways">Integration takeaways</a>
+                <a href="#continue">Continue the course</a>
+              </nav>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Key Takeaways</p>
+              <ul class="lesson-mini-list">
+                <li>Clusters expand cooperation without splitting one CTA across many SMs.</li>
+                <li>Inline PTX matters when operand type, state space, or synchronization semantics need exact control.</li>
+                <li><code>cvta</code> and <code>mapa</code> are the bridge from generic pointers to Hopper-specific memory behavior.</li>
+              </ul>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Companion Links</p>
+              <a class="lesson-text-link" href="lesson-1.html">Back to Lesson 1</a>
+              <a class="lesson-text-link" href="lesson-3.html">Open Lesson 3</a>
+              <a class="lesson-text-link" href="../slides.html">Browse All Slides</a>
+              <a class="lesson-text-link" href="../index.html#code">Jump to Code Anchors</a>
+            </div>
+          </aside>
+
+          <article class="lesson-article">
+            <section class="lesson-chapter" id="overview" data-reveal>
+              <h2>Overview</h2>
+              <p>
+                Modern CUDA performance work often requires thinking across scheduling, memory topology, compiler
+                behavior, and instruction-level control at the same time. Lesson 2 is where those layers begin to
+                collapse into one picture. Thread block clusters change how blocks cooperate. Distributed shared memory
+                changes what can be shared without bouncing through global memory. PTX and inline PTX expose instruction
+                forms that CUDA C++ does not always surface directly. Pointer conversion instructions tie all of that
+                back to the actual hardware address spaces.
+              </p>
+              <div class="lesson-note">
+                <p>
+                  <strong>Main idea:</strong> high-performance GPU code is not only about doing less work. It is also
+                  about placing data in the right memory region, using the right instruction form, and minimizing
+                  unnecessary routing, synchronization, and bank conflicts.
+                </p>
+              </div>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Clusters</h3>
+                  <p>Guaranteed co-scheduled CTAs on nearby SMs create a new cooperation surface above the block level.</p>
+                </article>
+                <article class="lesson-card">
+                  <h3>DSMEM</h3>
+                  <p>Remote shared-memory access inside a cluster reduces how often blocks need to fall back to global memory.</p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Inline PTX</h3>
+                  <p>Instruction-level control matters when the exact state space, datatype, or synchronization form is the point.</p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Pointer conversion</h3>
+                  <p><code>cvta</code> and <code>mapa</code> connect high-level pointers to concrete memory and cluster semantics.</p>
+                </article>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="clusters" data-reveal>
+              <h2>Thread block clusters</h2>
+              <p>
+                A thread block cluster is a group of thread blocks guaranteed to be co-scheduled concurrently on
+                adjacent SMs within a GPC. The important point is that this extends the hierarchy from
+                <strong>threads -&gt; thread blocks -&gt; clusters -&gt; grid</strong> without pretending one block is now
+                spread across many SMs.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Why clusters matter</h3>
+                  <p>
+                    When one thread block cannot hold enough useful shared state on a single SM, clusters provide a way
+                    for nearby CTAs to cooperate more directly.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>What does not change</h3>
+                  <p>
+                    A CTA still executes on exactly one SM. Clusters coordinate whole blocks; they do not split one CTA
+                    across the machine.
+                  </p>
+                </article>
+              </div>
+              <h3>Key properties</h3>
+              <ul>
+                <li>Clusters are explicit software constructs, not an automatic scheduling side effect.</li>
+                <li>All CTAs in a cluster are guaranteed concurrent residency on nearby SMs.</li>
+                <li>They are useful when cross-block data sharing is frequent enough to make global memory too expensive.</li>
+                <li>They trade some coordination overhead for a larger effective working set.</li>
+              </ul>
+              <h3>Cluster sizing tradeoffs</h3>
+              <table class="lesson-table" aria-label="Cluster size tradeoffs">
+                <thead>
+                  <tr>
+                    <th>Cluster size</th>
+                    <th>Upside</th>
+                    <th>Downside</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>2</td>
+                    <td>Low coordination overhead and often a practical default.</td>
+                    <td>Limited shared-memory reach across the cluster.</td>
+                  </tr>
+                  <tr>
+                    <td>8</td>
+                    <td>More cooperating CTAs with a useful balance of scale and usability.</td>
+                    <td>More synchronization cost and more constraints on grid shape.</td>
+                  </tr>
+                  <tr>
+                    <td>16</td>
+                    <td>Maximum neighborhood described in the lesson notes.</td>
+                    <td>Highest synchronization overhead and a larger risk of idle hardware.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <h3>Declaring a cluster</h3>
+              <pre class="lesson-pre"><code>__global__ void __cluster_dims__(2, 1, 1)
+cluster_kernel(float* input, float* output) {
+  // kernel body
+}
+
+// launch shape must remain compatible with cluster dimensions</code></pre>
+              <h3>Cluster special registers</h3>
+              <table class="lesson-table" aria-label="Cluster special registers">
+                <thead>
+                  <tr>
+                    <th>Register</th>
+                    <th>Meaning</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>%cluster_ctaid</code></td>
+                    <td>CTA identifier inside the cluster.</td>
+                  </tr>
+                  <tr>
+                    <td><code>%cluster_nctaid</code></td>
+                    <td>Cluster dimensions.</td>
+                  </tr>
+                  <tr>
+                    <td><code>%cluster_ctarank</code></td>
+                    <td>Linearized rank of the CTA inside the cluster.</td>
+                  </tr>
+                  <tr>
+                    <td><code>%cluster_nctarank</code></td>
+                    <td>Total CTA count inside the cluster.</td>
+                  </tr>
+                  <tr>
+                    <td><code>%is_explicit_cluster</code></td>
+                    <td>Whether the launch used an explicit cluster rather than the implicit <code>1x1x1</code> case.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="lesson-chapter" id="dsmem" data-reveal>
+              <h2>Distributed shared memory</h2>
+              <p>
+                Distributed shared memory is the cluster-era extension of shared memory. It allows direct memory access
+                between SMs inside the same thread block cluster. Ownership still stays per block, but the programmer
+                can address a neighboring CTA's shared-memory allocation without routing everything through global
+                memory.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>What it enables</h3>
+                  <p>Remote shared-memory loads, stores, and atomics between CTAs in the same cluster.</p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Why it is fast</h3>
+                  <p>It uses an SM-to-SM communication path instead of forcing all communication through L2 and HBM.</p>
+                </article>
+                <article class="lesson-card">
+                  <h3>What it is not</h3>
+                  <p>It is not one merged shared-memory pool. Each CTA still owns its own local allocation.</p>
+                </article>
+              </div>
+              <p>
+                The practical win is a larger effective working set at a much cheaper memory tier than global memory.
+                That is especially useful for top-k, matrix pipelines, reductions, or tile exchange patterns where
+                neighboring CTAs need each other's intermediate state.
+              </p>
+              <div class="lesson-note">
+                <p>
+                  <strong>TMA and multicast:</strong> DSMEM becomes much more powerful when paired with TMA-backed
+                  movement and multicast. One producer can seed multiple consumers without repeating the full data
+                  movement path for every destination.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="ptx" data-reveal>
+              <h2>PTX, inline PTX, operands, and state spaces</h2>
+              <p>
+                PTX is NVIDIA's virtual ISA inside the CUDA toolchain. CUDA C++ lowers into PTX, which is then lowered
+                again into machine-specific code. Inline PTX matters when you want instruction-level control without
+                rewriting an entire kernel in PTX.
+              </p>
+              <h3>Why use inline PTX</h3>
+              <ul>
+                <li>To access hardware features that CUDA C++ does not expose cleanly.</li>
+                <li>To hand-optimize small performance-critical fragments.</li>
+                <li>To request exact operand types, state spaces, or synchronization forms.</li>
+                <li>To inject constants or instruction parameters through templates.</li>
+              </ul>
+              <pre class="lesson-pre"><code>asm volatile(
+  "ptx instruction here;"
+  : /* outputs */
+  : /* inputs */
+  : /* clobbers */
+);</code></pre>
+              <h3>Constraint modifiers and common operand classes</h3>
+              <table class="lesson-table" aria-label="Inline PTX constraints">
+                <thead>
+                  <tr>
+                    <th>Constraint</th>
+                    <th>Meaning</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>=</code></td>
+                    <td>Write-only output operand.</td>
+                  </tr>
+                  <tr>
+                    <td><code>+</code></td>
+                    <td>Read-write operand.</td>
+                  </tr>
+                  <tr>
+                    <td><code>r</code></td>
+                    <td>General integer register.</td>
+                  </tr>
+                  <tr>
+                    <td><code>l</code></td>
+                    <td>64-bit integer register, commonly used for addresses.</td>
+                  </tr>
+                  <tr>
+                    <td><code>f</code></td>
+                    <td>32-bit floating-point register.</td>
+                  </tr>
+                  <tr>
+                    <td><code>d</code></td>
+                    <td>64-bit floating-point register.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                A <code>memory</code> clobber is often required when the assembly changes memory in ways the compiler
+                cannot infer from the operand list alone. Without it, the compiler may legally reorder surrounding code
+                in a way that breaks the intended semantics.
+              </p>
+              <h3>PTX state spaces</h3>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3><code>.global</code></h3>
+                  <p>Large device memory visible across the grid, high capacity and high latency.</p>
+                </article>
+                <article class="lesson-card">
+                  <h3><code>.shared</code></h3>
+                  <p>Low-latency memory local to a CTA, or reachable through cluster mechanisms in DSMEM workflows.</p>
+                </article>
+                <article class="lesson-card">
+                  <h3><code>.local</code></h3>
+                  <p>Per-thread storage, often backed by memory when registers spill.</p>
+                </article>
+                <article class="lesson-card">
+                  <h3><code>.const</code> / <code>.param</code></h3>
+                  <p>Read-only constant space and kernel argument space with their own access semantics.</p>
+                </article>
+              </div>
+              <h3>Data types that show up in Hopper code</h3>
+              <ul>
+                <li>Standard integer and floating-point scalar families still matter for control flow and addressing.</li>
+                <li>BF16, FP16, TF32, and FP8 matter because they change throughput, packing density, and tensor-core issue shape.</li>
+                <li>Packed types matter because multiple low-precision values are often carried inside one 32-bit register.</li>
+              </ul>
+            </section>
+
+            <section class="lesson-chapter" id="memory" data-reveal>
+              <h2>Addressing, banking, and swizzling</h2>
+              <p>
+                Shared memory is still banked, and the bank structure still matters even on Hopper. Poor access
+                patterns can serialize otherwise parallel traffic, which is why low-level layout choices continue to be
+                part of performance engineering instead of a side detail.
+              </p>
+              <h3>Shared-memory banks</h3>
+              <ul>
+                <li>Threads in a warp ideally spread their requests across banks instead of piling onto the same bank.</li>
+                <li>Bank conflicts increase replay and reduce effective bandwidth.</li>
+                <li>The more structured the access pattern, the easier it is to reason about conflict behavior.</li>
+              </ul>
+              <h3>128-byte transaction granularity</h3>
+              <p>
+                Many high-performance paths reason in 128-byte chunks because that aligns well with the granularity of
+                efficient movement and layout transformations. This is one reason tile shapes and swizzles show up so
+                often in Hopper code.
+              </p>
+              <div class="lesson-note">
+                <p>
+                  <strong>Why swizzling exists:</strong> it is a layout trick for spreading accesses more evenly across
+                  banks and transactions so structured movement stays fast even when tensor tiles are large and reused
+                  aggressively.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="pointers" data-reveal>
+              <h2>Generic pointers, state-space pointers, <code>cvta</code>, and <code>mapa</code></h2>
+              <p>
+                CUDA C++ usually gives you generic pointers, but PTX instructions often need a pointer that is already
+                understood in the correct state space. That is why conversion steps matter. The compiler cannot always
+                assume which physical memory region a generic pointer should target inside low-level assembly.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Generic pointers</h3>
+                  <p>Flexible at the CUDA C++ level, but ambiguous for instructions that care about a specific state space.</p>
+                </article>
+                <article class="lesson-card">
+                  <h3>State-space pointers</h3>
+                  <p>Explicitly identify shared, global, local, or constant semantics so the instruction can target the correct path.</p>
+                </article>
+              </div>
+              <h3><code>cvta</code> and <code>mapa</code></h3>
+              <pre class="lesson-pre"><code>// Convert a generic pointer into a specific address space
+asm volatile("cvta.to.shared.u64 %0, %1;" : "=l"(smem_addr) : "l"(ptr));
+
+// Map a shared-memory address into another CTA's shared-memory region
+asm volatile("mapa.shared::cluster.u64 %0, %1, %2;" : "=l"(remote_addr) : "l"(addr), "r"(rank));</code></pre>
+              <p>
+                <code>cvta</code> turns a generic address into the appropriate state-space address. <code>mapa</code>
+                takes that one step further for cluster programming by mapping a shared-memory address into the address
+                space of another CTA inside the cluster.
+              </p>
+              <div class="lesson-note">
+                <p>
+                  <strong>Important distinction:</strong> cluster rank is not the same thing as a global block ID. A
+                  block ID tells you where a CTA sits in the full grid. Cluster rank tells you where it sits inside its
+                  local cluster, and that is the value mapping operations care about.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="takeaways" data-reveal>
+              <h2>Integration takeaways</h2>
+              <ol>
+                <li><strong>Do not flatten clusters into “shared memory, but bigger.”</strong> Residency guarantees and ownership still matter.</li>
+                <li><strong>Keep state-space terminology precise.</strong> <code>.global</code>, <code>.shared</code>, and generic pointers are not interchangeable.</li>
+                <li><strong>Treat inline PTX as a surgical tool.</strong> Use it when exact semantics are the point, not as a stylistic preference.</li>
+                <li><strong>Respect bank behavior and 128-byte layout assumptions.</strong> Swizzles and packed layouts exist for a reason.</li>
+                <li><strong>Be exact about rank and mapping.</strong> Many cluster bugs are really address-space or rank-mapping bugs.</li>
+              </ol>
+              <h3>Glossary</h3>
+              <table class="lesson-table" aria-label="Lesson 2 glossary">
+                <tbody>
+                  <tr>
+                    <th>Cluster</th>
+                    <td>A guaranteed co-scheduled group of CTAs on nearby SMs inside a GPC.</td>
+                  </tr>
+                  <tr>
+                    <th>DSMEM</th>
+                    <td>Distributed shared memory, remote shared-memory access across CTAs in one cluster.</td>
+                  </tr>
+                  <tr>
+                    <th>PTX</th>
+                    <td>NVIDIA's virtual ISA used as the lower-level target inside the CUDA toolchain.</td>
+                  </tr>
+                  <tr>
+                    <th><code>cvta</code></th>
+                    <td>Convert to address; turns a generic pointer into the correct state-space address.</td>
+                  </tr>
+                  <tr>
+                    <th><code>mapa</code></th>
+                    <td>Map address; remaps shared-memory addresses across CTAs inside a cluster.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="lesson-chapter" id="continue" data-reveal>
+              <h2>Continue the course</h2>
+              <p>
+                Lesson 2 builds the address-space and instruction-level vocabulary Hopper kernels need. The next big
+                step is synchronization under overlap: barriers, wait patterns, and correctness when loads and compute
+                are intentionally in flight at the same time.
+              </p>
+              <div class="lesson-resource-grid">
+                <a class="lesson-resource-card" href="lesson-3.html">
+                  <span class="lesson-resource-label">Next Lesson</span>
+                  <h3>Asynchronicity and Barriers</h3>
+                  <p>Move into <code>mbarrier</code>, proxy fencing, wait semantics, and correctness under overlap.</p>
+                </a>
+                <a class="lesson-resource-card" href="../slides.html">
+                  <span class="lesson-resource-label">Course Material</span>
+                  <h3>All Slide Decks</h3>
+                  <p>Use the slides page when you want the full lecture sequence beyond the current integrated lesson pages.</p>
+                </a>
+                <a class="lesson-resource-card" href="../index.html#explore">
+                  <span class="lesson-resource-label">Explore</span>
+                  <h3>Back to Lesson Dossiers</h3>
+                  <p>Return to the homepage explore section and move between the current long-form lesson entries.</p>
+                </a>
+              </div>
+            </section>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <nav class="footer-nav" aria-label="Footer">
+        <a href="../index.html#top">Home</a>
+        <a href="../index.html#lessons">Lessons</a>
+        <a href="../index.html#explore">Explore</a>
+        <a href="../index.html#visuals">Visuals</a>
+        <a href="../slides.html">Slides</a>
+      </nav>
+      <p>CUDA Programming for NVIDIA H100s</p>
+      <p>Prateek Shukla</p>
+    </footer>
+
+    <script src="../script.js"></script>
+  </body>
+</html>

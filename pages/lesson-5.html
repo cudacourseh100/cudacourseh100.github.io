@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Lesson 5 of CUDA Programming for NVIDIA H100s: cp.async.bulk, tensor copies, TMA-backed movement, multicast, prefetch, cache policy, and completion semantics."
+    >
+    <meta name="theme-color" content="#08111d">
+    <title>Lesson 5 | cp.async.bulk</title>
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Urbanist:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="../styles.css">
+  </head>
+  <body class="lesson-view lesson-view-copybulk">
+    <header class="site-header">
+      <a class="header-mark" href="../index.html#top" aria-label="CUDA Programming for NVIDIA H100s">
+        <span>Prateek Shukla</span>
+        <span>CUDA Programming for NVIDIA H100s</span>
+      </a>
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="site-nav"
+        aria-label="Open navigation"
+      >
+        <span class="nav-toggle-label">Menu</span>
+        <span class="nav-toggle-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Lesson navigation">
+        <a href="#overview">Overview</a>
+        <a href="#families">Instruction Family</a>
+        <a href="#completion">Completion</a>
+        <a href="#multicast">Multicast</a>
+        <a href="#takeaways">Takeaways</a>
+        <a href="../index.html#explore">Explore</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="lesson-hero">
+        <div class="section-shell lesson-hero-grid">
+          <div class="lesson-hero-copy">
+            <p class="hero-credit">Explore Here / Lesson 05</p>
+            <h1 class="lesson-hero-title"><code>cp.async.bulk</code></h1>
+            <p class="lesson-hero-summary">
+              Lesson 5 turns the TMA descriptor into an actual instruction family. Hopper bulk copies move large
+              regions asynchronously with much lower issue overhead than Ampere-era copy loops, and they expand the
+              design space to include tensor-aware movement, multicast, prefetch, cache policy, bulk groups, and
+              barrier-linked completion.
+            </p>
+            <div class="lesson-chip-list" aria-label="Lesson 5 topics">
+              <span class="lesson-chip">cp.async.bulk</span>
+              <span class="lesson-chip">cp.async.bulk.tensor</span>
+              <span class="lesson-chip">Multicast</span>
+              <span class="lesson-chip">bulk_group</span>
+              <span class="lesson-chip">Cache Policy</span>
+            </div>
+            <div class="hero-actions">
+              <a
+                class="button button-primary"
+                href="../H100-Course/slides/5. cp.async.bulk.pdf"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Slide Deck
+              </a>
+              <a class="button button-secondary" href="../index.html#explore">Back to Explore</a>
+            </div>
+          </div>
+
+          <aside class="lesson-meta-card" data-reveal>
+            <p class="lesson-meta-eyebrow">What Changes Here</p>
+            <h2>The copy path becomes a real instruction family with its own modes, contracts, and topology.</h2>
+            <p>
+              This lesson is the movement counterpart to the barrier and descriptor lessons. It explains how Hopper uses
+              TMA-backed bulk instructions to move linear regions, structured tensor tiles, clustered payloads, and
+              multicast fanout while compute keeps going.
+            </p>
+            <dl class="lesson-facts">
+              <div>
+                <dt>Course Position</dt>
+                <dd>Lesson 05 of 10</dd>
+              </div>
+              <div>
+                <dt>Main Shift</dt>
+                <dd>One issuing thread can launch movement for a whole block or cluster tile.</dd>
+              </div>
+              <div>
+                <dt>Companion Deck</dt>
+                <dd><code>5. cp.async.bulk.pdf</code></dd>
+              </div>
+              <div>
+                <dt>Code Anchor</dt>
+                <dd><code>fast.cu/examples/matmul/matmul_12.cuh</code></dd>
+              </div>
+            </dl>
+          </aside>
+        </div>
+      </section>
+
+      <section class="lesson-body">
+        <div class="section-shell lesson-layout">
+          <aside class="lesson-sidebar">
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">On This Page</p>
+              <nav class="lesson-side-nav" aria-label="Lesson 5 sections">
+                <a href="#overview">Why bulk copies matter</a>
+                <a href="#families">Raw vs tensor forms</a>
+                <a href="#completion">Completion mechanisms</a>
+                <a href="#cache">Cache policy and prefetch</a>
+                <a href="#multicast">Multicast and DSMEM fanout</a>
+                <a href="#takeaways">Practical guidance</a>
+                <a href="#continue">Continue the course</a>
+              </nav>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Key Takeaways</p>
+              <ul class="lesson-mini-list">
+                <li>Hopper bulk copies offload address generation and large transfer work to TMA hardware.</li>
+                <li><code>cp.async.bulk</code> and <code>cp.async.bulk.tensor</code> solve different movement problems.</li>
+                <li>Completion style, cache policy, and multicast topology meaningfully change kernel behavior.</li>
+              </ul>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Companion Links</p>
+              <a class="lesson-text-link" href="lesson-4.html">Back to Lesson 4</a>
+              <a class="lesson-text-link" href="lesson-6.html">Open Lesson 6</a>
+              <a class="lesson-text-link" href="../files/fast.cu/examples/matmul/matmul_12.cuh" target="_blank" rel="noreferrer">Open Bulk Copy Code Anchor</a>
+            </div>
+          </aside>
+
+          <article class="lesson-article">
+            <section class="lesson-chapter" id="overview" data-reveal>
+              <h2>Why bulk copies matter</h2>
+              <p>
+                <code>cp.async.bulk</code> is Hopper's hardware-accelerated asynchronous bulk transfer family. The big
+                idea is not just that the instruction is non-blocking. It is that the TMA hardware can own the address
+                calculation, loop expansion, and movement of a much larger region while the SM goes back to compute.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Ampere <code>cp.async</code></h3>
+                  <p>
+                    Uses the LSU path. The warp is still responsible for issuing many 16-byte operations and carrying
+                    the address-generation burden itself.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Hopper <code>cp.async.bulk</code></h3>
+                  <p>
+                    Uses TMA. One thread can launch a whole tile transfer while the hardware tracks progress and updates
+                    the relevant completion object.
+                  </p>
+                </article>
+              </div>
+              <p>
+                That matters because movement is often the long pole. Reducing issue overhead, register pressure, and
+                instruction traffic gives the rest of the kernel more space to stay compute-focused.
+              </p>
+            </section>
+
+            <section class="lesson-chapter" id="families" data-reveal>
+              <h2>Raw and tensor-aware bulk copies solve different problems</h2>
+              <p>
+                Hopper exposes two broad shapes. The raw form is a bulk memcpy-like instruction. The tensor form is
+                descriptor-aware and uses the tensor map plus coordinates to locate and move a structured tile.
+              </p>
+              <h3>Raw / linear form</h3>
+              <pre class="lesson-pre"><code>cp.async.bulk.dst.src.barrier_type{.cache_hint}
+dst_addr, src_addr, size, mbarrier_addr;</code></pre>
+              <p>
+                Use this when memory is just a contiguous byte range. The hardware does not interpret the source as a
+                tensor with dimensions and bounds.
+              </p>
+              <h3>Tensor-aware form</h3>
+              <pre class="lesson-pre"><code>cp.async.bulk.tensor.ndim.dst.src.barrier_type{.cache_hint}{.multicast}
+dst_addr, tensor_map, coordinate_array, mbarrier_addr;</code></pre>
+              <p>
+                Adding <code>.tensor</code> makes the instruction descriptor-aware. The dimensional suffix tells the
+                hardware how many coordinates to read, and the tensor map carries shape, stride, bounds, swizzle, and
+                related layout information.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>State spaces</h3>
+                  <p>
+                    The source and destination state spaces are explicit in the instruction shape, including
+                    <code>.global</code>, <code>.shared::cta</code>, and <code>.shared::cluster</code>.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>Load modes</h3>
+                  <p>
+                    <code>.tile</code> fetches a dense multidimensional tile. <code>.im2col</code> applies a
+                    convolution-friendly transform during fetch instead of requiring a separate rearrangement kernel.
+                  </p>
+                </article>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="completion" data-reveal>
+              <h2>Completion mechanisms define how consumers know the transfer is safe</h2>
+              <p>
+                The lesson makes the completion model explicit because the transfer itself is intentionally asynchronous.
+                Hopper offers two main completion styles.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3><code>mbarrier::complete_tx::bytes</code></h3>
+                  <p>
+                    The richer coordination path. Hardware updates the barrier's transaction count as bytes arrive and
+                    flips phase when the expected work completes.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3><code>bulk_group</code></h3>
+                  <p>
+                    The lighter-weight batching model. You launch operations, commit the group, and later wait until
+                    only a limited number of recent groups remain pending.
+                  </p>
+                </article>
+              </div>
+              <p>
+                <code>mbarrier</code> is the right model when you want explicit byte-tracked coordination between
+                producers and consumers. <code>bulk_group</code> is simpler when coarse-grained grouped waiting is
+                enough.
+              </p>
+              <div class="lesson-note">
+                <p>
+                  <strong>Important distinction:</strong> <code>bulk_group</code> is about batching async operations.
+                  <code>mbarrier</code> is about tracking work and phase completion with a reusable synchronization
+                  object.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="cache" data-reveal>
+              <h2>Cache policy and prefetch shape how bulk movement interacts with L2</h2>
+              <p>
+                Bulk copies can flood L2 with one-use traffic if the kernel does not communicate reuse intent. Hopper
+                lets the instruction attach L2 cache hints through a cache policy descriptor.
+              </p>
+              <table class="lesson-table" aria-label="cp.async.bulk cache policy guide">
+                <thead>
+                  <tr>
+                    <th>Policy</th>
+                    <th>Meaning</th>
+                    <th>Typical fit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>evict_first</code></td>
+                    <td>Mark lines as early eviction candidates.</td>
+                    <td>Streaming or one-pass data, and final-output stores.</td>
+                  </tr>
+                  <tr>
+                    <td><code>evict_last</code></td>
+                    <td>Mark lines as persistent for longer retention.</td>
+                    <td>Reused weights or tiles likely to be consumed repeatedly.</td>
+                  </tr>
+                  <tr>
+                    <td><code>evict_normal</code></td>
+                    <td>Default behavior.</td>
+                    <td>When reuse is unclear or mixed.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <pre class="lesson-pre"><code>createpolicy.fractional.L2::evict_last.b64 policy_reg, 1.0;
+createpolicy.fractional.L2::evict_first.b64 policy_reg, 1.0;</code></pre>
+              <p>
+                <code>cp.async.bulk.prefetch</code> and its tensor-aware variant can also prefetch data into L2 as a
+                latency hint, but the lesson is clear that prefetch is not a correctness primitive. If the later main
+                transfer arrives before the data is cached, hardware will fetch from HBM anyway.
+              </p>
+            </section>
+
+            <section class="lesson-chapter" id="multicast" data-reveal>
+              <h2>Multicast turns one HBM fetch into cluster-wide delivery</h2>
+              <p>
+                A recurring Hopper use case is that multiple CTAs in a cluster need the same operand tile. In GEMM-like
+                workloads, many blocks may need the same slice of matrix A while each consumes a different slice of
+                matrix B. Multicast exists to avoid paying for that same HBM fetch repeatedly.
+              </p>
+              <ol>
+                <li>A leader thread issues the multicast TMA instruction.</li>
+                <li>The data is fetched once from global memory into L2.</li>
+                <li>The cache/controller fabric broadcasts it to the shared-memory destinations of the CTAs selected by the mask.</li>
+                <li>The relevant barrier state is updated for each participating CTA.</li>
+                <li>Consumers in each CTA wait on their local barrier and resume when the tile is valid.</li>
+              </ol>
+              <p>
+                The notes emphasize that the barrier object is replicated at the same relative shared-memory offset in
+                each participating CTA. Only CTAs included in the mask should behave like receivers for that transfer.
+              </p>
+              <div class="lesson-note">
+                <p>
+                  <strong>Practical consequence:</strong> multicast is a topology feature, not just a copy qualifier.
+                  The mask, barrier placement, and cluster participation all have to agree or the synchronization
+                  contract breaks.
+                </p>
+              </div>
+              <h3>TMA stores and reductions</h3>
+              <p>
+                The lesson also points out that structured stores can use <code>bulk_group</code> completion, and
+                Hopper extends the offload idea further with <code>cp.reduce.async</code>, where the TMA path can own
+                bulk reduction-style accumulation work too.
+              </p>
+            </section>
+
+            <section class="lesson-chapter" id="takeaways" data-reveal>
+              <h2>Practical guidance</h2>
+              <ol>
+                <li><strong>Use raw bulk copies when memory is just bytes.</strong> Use tensor copies when shape, stride, and bounds are part of the problem.</li>
+                <li><strong>Choose the completion model intentionally.</strong> <code>mbarrier</code> and <code>bulk_group</code> are different coordination tools.</li>
+                <li><strong>Pick cache policy based on reuse.</strong> Streaming traffic and persistent weights want opposite hints.</li>
+                <li><strong>Treat multicast as a cluster contract.</strong> Mask membership, barrier offsets, and receiver logic have to line up.</li>
+                <li><strong>Remember that prefetch is only a hint.</strong> It can reduce latency, but it does not guarantee residency.</li>
+              </ol>
+              <h3>Glossary</h3>
+              <table class="lesson-table" aria-label="Lesson 5 glossary">
+                <tbody>
+                  <tr>
+                    <th><code>cp.async.bulk</code></th>
+                    <td>Hopper's asynchronous bulk copy instruction family for large transfers.</td>
+                  </tr>
+                  <tr>
+                    <th><code>cp.async.bulk.tensor</code></th>
+                    <td>The descriptor-aware structured tensor-copy form.</td>
+                  </tr>
+                  <tr>
+                    <th><code>bulk_group</code></th>
+                    <td>A batching and grouped-wait mechanism for bulk async operations.</td>
+                  </tr>
+                  <tr>
+                    <th>Multicast</th>
+                    <td>Cluster-wide fanout of one fetched payload to multiple CTA destinations.</td>
+                  </tr>
+                  <tr>
+                    <th>Cache policy descriptor</th>
+                    <td>A 64-bit object created with <code>createpolicy</code> to carry eviction hints.</td>
+                  </tr>
+                  <tr>
+                    <th><code>cp.async.bulk.prefetch</code></th>
+                    <td>An L2 prefetch hint for future bulk transfers.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="lesson-chapter" id="continue" data-reveal>
+              <h2>Continue the course</h2>
+              <p>
+                Lesson 5 defines the main async movement family. Lesson 6 pivots to the compute side of the same
+                pipeline: WGMMA, warpgroups, descriptor-backed tensor-core issue, and the register or shared-memory
+                operand paths Hopper uses for large asynchronous matrix math.
+              </p>
+              <div class="lesson-resource-grid">
+                <a class="lesson-resource-card" href="lesson-6.html">
+                  <span class="lesson-resource-label">Next Lesson</span>
+                  <h3>WGMMA Part 1</h3>
+                  <p>Move into warpgroup tensor-core issue, <code>ldmatrix</code>, descriptors, and async math launch.</p>
+                </a>
+                <a class="lesson-resource-card" href="../files/fast.cu/examples/matmul/matmul_12.cuh" target="_blank" rel="noreferrer">
+                  <span class="lesson-resource-label">Code Anchor</span>
+                  <h3>matmul_12.cuh</h3>
+                  <p>See structured bulk copies, multicast, bulk-group waits, and WGMMA-adjacent movement in one Hopper kernel path.</p>
+                </a>
+                <a class="lesson-resource-card" href="../index.html#explore">
+                  <span class="lesson-resource-label">Explore</span>
+                  <h3>Back to Lesson Dossiers</h3>
+                  <p>Return to the homepage and move through the integrated lesson pages already living inside the site.</p>
+                </a>
+              </div>
+            </section>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <nav class="footer-nav" aria-label="Footer">
+        <a href="../index.html#top">Home</a>
+        <a href="../index.html#lessons">Lessons</a>
+        <a href="../index.html#explore">Explore</a>
+        <a href="../index.html#visuals">Visuals</a>
+        <a href="../slides.html">Slides</a>
+      </nav>
+      <p>CUDA Programming for NVIDIA H100s</p>
+      <p>Prateek Shukla</p>
+    </footer>
+
+    <script src="../script.js"></script>
+  </body>
+</html>

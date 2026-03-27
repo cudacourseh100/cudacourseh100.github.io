@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Lesson 9 of CUDA Programming for NVIDIA H100s: why multi-GPU systems exist, DGX H100 node anatomy, NVLink, NVSwitch, ConnectX, rail-aligned fabrics, UVA, and peer-to-peer communication."
+    >
+    <meta name="theme-color" content="#08111d">
+    <title>Lesson 9 | Multi GPU Part 1</title>
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Urbanist:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="../styles.css">
+  </head>
+  <body class="lesson-view lesson-view-multigpu">
+    <header class="site-header">
+      <a class="header-mark" href="../index.html#top" aria-label="CUDA Programming for NVIDIA H100s">
+        <span>Prateek Shukla</span>
+        <span>CUDA Programming for NVIDIA H100s</span>
+      </a>
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="site-nav"
+        aria-label="Open navigation"
+      >
+        <span class="nav-toggle-label">Menu</span>
+        <span class="nav-toggle-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Lesson navigation">
+        <a href="#overview">Overview</a>
+        <a href="#node">Node</a>
+        <a href="#fabric">Fabric</a>
+        <a href="#topology">Topology</a>
+        <a href="#cuda-p2p">CUDA P2P</a>
+        <a href="#takeaways">Takeaways</a>
+        <a href="../index.html#explore">Explore</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="lesson-hero">
+        <div class="section-shell lesson-hero-grid">
+          <div class="lesson-hero-copy">
+            <p class="hero-credit">Explore Here / Lesson 09</p>
+            <h1 class="lesson-hero-title">Multi GPU Part 1</h1>
+            <p class="lesson-hero-summary">
+              Lesson 9 leaves the single-GPU kernel and asks what real training systems have to move through. The
+              answer is a fabric: NVLink and NVSwitch inside the node, ConnectX and rail-aligned InfiniBand outside
+              it, plus CUDA peer access and UVA as the lowest software layer above that hardware.
+            </p>
+            <div class="lesson-chip-list" aria-label="Lesson 9 topics">
+              <span class="lesson-chip">NVLink</span>
+              <span class="lesson-chip">NVSwitch</span>
+              <span class="lesson-chip">ConnectX</span>
+              <span class="lesson-chip">UVA</span>
+              <span class="lesson-chip">P2P</span>
+            </div>
+            <div class="hero-actions">
+              <a
+                class="button button-primary"
+                href="../H100-Course/slides/9. Multi GPU.pdf"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Slide Deck
+              </a>
+              <a class="button button-secondary" href="../index.html#explore">Back to Explore</a>
+            </div>
+          </div>
+
+          <aside class="lesson-meta-card" data-reveal>
+            <p class="lesson-meta-eyebrow">What Changes Here</p>
+            <h2>Performance stops being only a kernel problem and becomes a fabric problem.</h2>
+            <p>
+              Hopper kernels explain how one GPU stays busy. Multi-GPU systems explain how many GPUs stay coordinated
+              once memory, bandwidth, topology, and software discovery all live outside a single SM.
+            </p>
+            <dl class="lesson-facts">
+              <div>
+                <dt>Course Position</dt>
+                <dd>Lesson 09 of 10</dd>
+              </div>
+              <div>
+                <dt>Main Shift</dt>
+                <dd>The bottleneck moves from one kernel pipeline to the communication fabric between accelerators.</dd>
+              </div>
+              <div>
+                <dt>Companion Deck</dt>
+                <dd><code>9. Multi GPU.pdf</code></dd>
+              </div>
+              <div>
+                <dt>Systems Focus</dt>
+                <dd><code>NVLink</code>, <code>NVSwitch</code>, <code>ConnectX-7</code>, rails, and <code>cudaDeviceEnablePeerAccess</code></dd>
+              </div>
+            </dl>
+          </aside>
+        </div>
+      </section>
+
+      <section class="lesson-body">
+        <div class="section-shell lesson-layout">
+          <aside class="lesson-sidebar">
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">On This Page</p>
+              <nav class="lesson-side-nav" aria-label="Lesson 9 sections">
+                <a href="#overview">Why scale out</a>
+                <a href="#node">DGX H100 anatomy</a>
+                <a href="#fabric">NVLink and NVSwitch</a>
+                <a href="#topology">ConnectX, rails, and topology</a>
+                <a href="#cuda-p2p">UVA and peer access</a>
+                <a href="#takeaways">Practical guidance</a>
+                <a href="#continue">Continue the course</a>
+              </nav>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Key Takeaways</p>
+              <ul class="lesson-mini-list">
+                <li>Multi-GPU training exists because even one extremely fast H100 is nowhere near enough for frontier-scale workloads.</li>
+                <li>Inside the node, NVLink and NVSwitch create the fast path. Outside the node, ConnectX and the network fabric dominate the scaling story.</li>
+                <li>CUDA P2P and UVA expose basic direct access, but higher-level communication is still needed once the topology stops being trivial.</li>
+              </ul>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Companion Links</p>
+              <a class="lesson-text-link" href="lesson-8.1.html">Back to Lesson 8.1</a>
+              <a class="lesson-text-link" href="lesson-10.html">Open Lesson 10</a>
+              <a class="lesson-text-link" href="../slides.html">Browse All Slides</a>
+            </div>
+          </aside>
+
+          <article class="lesson-article">
+            <section class="lesson-chapter" id="overview" data-reveal>
+              <h2>Why scale out at all</h2>
+              <p>
+                The slides start with a blunt calculation. If training roughly costs six FLOPs per parameter per token,
+                then a 1T parameter model over 10T tokens lands near <code>6 x 10^25</code> FLOPs. Even pretending you
+                sustain 1000 TFLOP/s, that is measured in centuries on one device. Multi-GPU systems are not a luxury.
+                They are the only way the training budget enters human time.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>More throughput</h3>
+                  <p>
+                    Additional GPUs cut wall-clock time by spreading the math over more tensor cores and more HBM
+                    capacity.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>More memory surface</h3>
+                  <p>
+                    Bigger models and optimizer state stop fitting on one device, so the system needs many pools of HBM
+                    plus a fabric fast enough to keep them coherent enough for training.
+                  </p>
+                </article>
+              </div>
+              <div class="lesson-note">
+                <p>
+                  <strong>The point of the lesson:</strong> once you leave one GPU, the machine is no longer just SMs,
+                  tensor cores, and shared memory. The machine is now a communication hierarchy.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="node" data-reveal>
+              <h2>A DGX H100 node is already a small distributed system</h2>
+              <p>
+                The notes describe the DGX H100 node as eight SXM5 H100 GPUs connected by four NVSwitch chips, plus
+                eight ConnectX-7 NICs and four OSFP cages for the external compute fabric. That matters because the
+                node is not one GPU with accessories. It is a coordinated mesh of accelerators and network endpoints.
+              </p>
+              <table class="lesson-table" aria-label="DGX H100 node anatomy">
+                <thead>
+                  <tr>
+                    <th>Component</th>
+                    <th>Role</th>
+                    <th>Why it matters</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>8 x H100 SXM5 GPUs</td>
+                    <td>Compute and HBM capacity inside the node.</td>
+                    <td>They are the endpoints that need to exchange activations, gradients, and model state.</td>
+                  </tr>
+                  <tr>
+                    <td>4 x NVSwitch</td>
+                    <td>Internal full-speed switching fabric.</td>
+                    <td>Lets every GPU reach every other GPU without collapsing to a slow PCIe-style path.</td>
+                  </tr>
+                  <tr>
+                    <td>8 x ConnectX-7 NICs</td>
+                    <td>External network interfaces for the compute fabric.</td>
+                    <td>Once traffic leaves the node, these devices own the critical bandwidth transition.</td>
+                  </tr>
+                  <tr>
+                    <td>4 x OSFP cages</td>
+                    <td>Physical outbound high-speed links.</td>
+                    <td>Expose the node to the rail-aligned InfiniBand fabric.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                The lesson also separates compute fabric from storage fabric. The OSFP path is for inter-node GPU
+                communication. Dataset ingest and checkpoint traffic use a different set of interfaces and a different
+                network design.
+              </p>
+            </section>
+
+            <section class="lesson-chapter" id="fabric" data-reveal>
+              <h2>Inside the node, NVLink and NVSwitch define the fast path</h2>
+              <p>
+                H100's fourth-generation NVLink gives each GPU about 900 GB/s of bidirectional bandwidth. The notes
+                frame that as the reason GPUs can skip the CPU path and communicate directly out of HBM instead of
+                bouncing through ordinary host-centric links.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>NVLink</h3>
+                  <p>
+                    The direct GPU-to-GPU link layer. The notes call out 18 individual NVLink links per H100 and treat
+                    the bandwidth jump over PCIe as one of the main reasons modern multi-GPU systems behave
+                    differently.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>NVSwitch</h3>
+                  <p>
+                    The node-wide switching layer that makes the interconnect fully non-blocking. Every GPU can reach
+                    every other GPU at full speed without being trapped in a daisy-chain story.
+                  </p>
+                </article>
+              </div>
+              <p>
+                The important conceptual transition is that the node starts to feel like a fabric rather than eight
+                isolated devices. The notes even emphasize that switch-side operations matter, because the switch layer
+                is not just a dumb cable crossbar.
+              </p>
+              <div class="lesson-note">
+                <p>
+                  <strong>The bandwidth cliff:</strong> inside one DGX node, GPUs talk over NVLink. Once traffic leaves
+                  the box, it hits the NIC and the external network. The whole scaling story is shaped by how well you
+                  manage that drop in bandwidth and added distance.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="topology" data-reveal>
+              <h2>Outside the node, ConnectX, rails, and the network topology decide whether scaling holds</h2>
+              <p>
+                ConnectX-7 is the exit point from the node. The notes describe eight compute NICs per DGX H100 and a
+                rail-aligned system where GPU 0 across all nodes shares one rail, GPU 1 shares another, and so on.
+                This creates eight parallel traffic planes instead of one giant mixed queue.
+              </p>
+              <table class="lesson-table" aria-label="Inter-node fabric concepts">
+                <thead>
+                  <tr>
+                    <th>Concept</th>
+                    <th>What it means</th>
+                    <th>Why it matters</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Rail alignment</td>
+                    <td>Each GPU index across the cluster maps onto its own independent network plane.</td>
+                    <td>Reduces interference and keeps traffic patterns cleaner at the leaf layer.</td>
+                  </tr>
+                  <tr>
+                    <td>Leaf / spine / core</td>
+                    <td>A hierarchical InfiniBand fat-tree that expands from one scalable unit to larger pods.</td>
+                    <td>Determines path diversity, oversubscription behavior, and cluster-wide reachability.</td>
+                  </tr>
+                  <tr>
+                    <td>Adaptive routing</td>
+                    <td>Switch hardware chooses among multiple viable paths based on congestion.</td>
+                    <td>Prevents flows from piling onto one hot uplink when alternatives are available.</td>
+                  </tr>
+                  <tr>
+                    <td>SHIELD and in-network logic</td>
+                    <td>Hardware features that help isolate faults or offload parts of communication behavior.</td>
+                    <td>Scaling fails fast if the fabric cannot handle faults and reductions efficiently.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                The notes describe SuperPOD-style deployments as rail-optimized, three-tier fabrics built from
+                Quantum-2 InfiniBand switches. The exact numbers matter less than the lesson's main point: once you
+                scale beyond one node, topology is no longer background detail. It is part of performance engineering.
+              </p>
+            </section>
+
+            <section class="lesson-chapter" id="cuda-p2p" data-reveal>
+              <h2>CUDA P2P and UVA expose the basic direct path, but not the whole communication problem</h2>
+              <p>
+                CUDA gives two key mechanisms at this level. Unified Virtual Addressing means one pointer space can
+                identify whether data lives in host memory or a GPU's HBM. Peer access then allows one GPU to directly
+                access another GPU's memory over the available fabric.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3><code>cudaDeviceEnablePeerAccess</code></h3>
+                  <p>
+                    Enables direct peer access. The notes stress that it is unidirectional, so bidirectional access
+                    needs the call on both devices.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3><code>cudaMemcpyPeer</code></h3>
+                  <p>
+                    Issues direct memory copies between devices without staging through host memory, assuming peer
+                    access and the right topology are available.
+                  </p>
+                </article>
+              </div>
+              <p>
+                But the lesson also argues that raw P2P is not the whole answer. On an HGX H100 board, the topology is
+                a switch-connected mesh, not a straight line. A manual load/store path from one SM to another GPU's HBM
+                does not automatically saturate the fabric or solve multi-party coordination. That is exactly why the
+                next lesson turns to NCCL, PMIx, and Slurm.
+              </p>
+              <pre class="lesson-pre"><code>// Conceptual CUDA-side flow
+cudaDeviceEnablePeerAccess(peer, 0);
+cudaMemcpyPeer(dst_ptr, dst_device, src_ptr, src_device, bytes);</code></pre>
+            </section>
+
+            <section class="lesson-chapter" id="takeaways" data-reveal>
+              <h2>Practical guidance</h2>
+              <ol>
+                <li><strong>Measure the bandwidth hierarchy, not just the GPU.</strong> Intra-node NVLink behavior and inter-node NIC behavior are very different scaling regimes.</li>
+                <li><strong>Read the node as a fabric.</strong> NVSwitch, ConnectX, OSFP, rails, and topology are part of the machine your kernel actually runs inside.</li>
+                <li><strong>Use peer access deliberately.</strong> Direct GPU memory access is powerful, but it is not an automatic replacement for collective libraries or topology-aware scheduling.</li>
+                <li><strong>Expect topology to shape performance.</strong> Rail alignment, adaptive routing, and switch hierarchy determine whether communication stays balanced as the cluster grows.</li>
+                <li><strong>Treat lesson 9 as the hardware preface to lesson 10.</strong> Once you understand the fabric, the orchestration stack makes much more sense.</li>
+              </ol>
+              <h3>Glossary</h3>
+              <table class="lesson-table" aria-label="Lesson 9 glossary">
+                <tbody>
+                  <tr>
+                    <th>NVLink</th>
+                    <td>Direct GPU-to-GPU interconnect used for high-bandwidth communication inside the node.</td>
+                  </tr>
+                  <tr>
+                    <th>NVSwitch</th>
+                    <td>Switch fabric that lets GPUs inside a node communicate with each other at full speed.</td>
+                  </tr>
+                  <tr>
+                    <th>ConnectX-7</th>
+                    <td>The node's high-speed network interface for external GPU-to-GPU communication.</td>
+                  </tr>
+                  <tr>
+                    <th>Rail</th>
+                    <td>An isolated network plane that aligns the same GPU index across all nodes onto one communication path.</td>
+                  </tr>
+                  <tr>
+                    <th>UVA</th>
+                    <td>Unified Virtual Addressing, which lets the system determine memory location from the pointer value.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="lesson-chapter" id="continue" data-reveal>
+              <h2>Continue the course</h2>
+              <p>
+                Lesson 9 explains the hardware and CUDA-side path. The final lesson moves into orchestration: how jobs
+                launch across nodes, how ranks discover each other, and how collective communication actually gets
+                initialized and scheduled.
+              </p>
+              <div class="lesson-resource-grid">
+                <a class="lesson-resource-card" href="lesson-10.html">
+                  <span class="lesson-resource-label">Next Lesson</span>
+                  <h3>Multi GPU Part 2</h3>
+                  <p>Continue into Slurm, PMIx, NCCL communicator setup, collectives, and the orchestration layer behind large jobs.</p>
+                </a>
+                <a class="lesson-resource-card" href="../slides.html">
+                  <span class="lesson-resource-label">Course Material</span>
+                  <h3>Browse All Slides</h3>
+                  <p>Open the full slide collection when you want the broader deck sequence rather than one lesson dossier.</p>
+                </a>
+                <a class="lesson-resource-card" href="lesson-8.1.html">
+                  <span class="lesson-resource-label">Backtrack</span>
+                  <h3>Stream-K</h3>
+                  <p>Step back into the scheduler addendum if you want the bridge between single-node kernel design and multi-node systems.</p>
+                </a>
+                <a class="lesson-resource-card" href="../index.html#explore">
+                  <span class="lesson-resource-label">Explore</span>
+                  <h3>Back to Lesson Dossiers</h3>
+                  <p>Return to the homepage and move through the integrated site-native lessons already wired into the main UI.</p>
+                </a>
+              </div>
+            </section>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <nav class="footer-nav" aria-label="Footer">
+        <a href="../index.html#top">Home</a>
+        <a href="../index.html#lessons">Lessons</a>
+        <a href="../index.html#explore">Explore</a>
+        <a href="../index.html#visuals">Visuals</a>
+        <a href="../slides.html">Slides</a>
+      </nav>
+      <p>CUDA Programming for NVIDIA H100s</p>
+      <p>Prateek Shukla</p>
+    </footer>
+
+    <script src="../script.js"></script>
+  </body>
+</html>

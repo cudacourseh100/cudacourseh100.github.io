@@ -8,8 +8,23 @@ const outDir = path.join(rootDir, "docs");
 
 const rootFiles = ["index.html", "slides.html", "styles.css", "script.js", "favicon.svg"];
 
+const pageFiles = [
+  "pages/lesson-1.html",
+  "pages/lesson-2.html",
+  "pages/lesson-3.html",
+  "pages/lesson-4.html",
+  "pages/lesson-5.html",
+  "pages/lesson-6.html",
+  "pages/lesson-7.html",
+  "pages/lesson-8.html",
+  "pages/lesson-8.1.html",
+  "pages/lesson-9.html",
+  "pages/lesson-10.html",
+];
+
 const slideFiles = [
   "0. CUDA Programming for NVIDIA H100 GPUs.pdf",
+  "1. Introduction to H100.pdf",
   "2. Clusters, Data types, inline PTX, State Spaces.pdf",
   "3. Asynchronicity and barriers.pdf",
   "4. cuTensorMap.pdf",
@@ -17,12 +32,19 @@ const slideFiles = [
   "6. WGMMA-1.pdf",
   "7. Wgmma part 2.pdf",
   "8. Kernel Design.pdf",
+  "8.1 Stream-K.pdf",
   "9. Multi GPU.pdf",
   "10. Multi GPU  Part 2.pdf",
 ];
 
 const codeFiles = [
   "sm90_gemm_tma_warpspecialized_pingpong.hpp",
+  "sm90_gemm_tma_warpspecialized_cooperative.hpp",
+  "sm90_epilogue_tma_warpspecialized.hpp",
+  "sm90_mma_tma_gmma_rs_warpspecialized.hpp",
+  "sm90_mma_tma_gmma_ss_warpspecialized.hpp",
+  "sm90_tile_scheduler.hpp",
+  "sm90_tile_scheduler_group.hpp",
   "sm90_tile_scheduler_stream_k.hpp",
   "fast.cu/README.md",
   "fast.cu/LICENSE",
@@ -52,8 +74,8 @@ async function fileExists(targetPath) {
   }
 }
 
-async function validateIndex() {
-  const htmlPath = path.join(outDir, "index.html");
+async function validateHtml(relativeHtmlPath) {
+  const htmlPath = path.join(outDir, relativeHtmlPath);
   const html = await readFile(htmlPath, "utf8");
 
   const ids = new Set([...html.matchAll(idPattern)].map((match) => match[1]));
@@ -79,10 +101,10 @@ async function validateIndex() {
     }
 
     const cleanValue = value.split("#")[0].split("?")[0];
-    const targetPath = path.join(outDir, cleanValue);
+    const targetPath = path.resolve(path.dirname(htmlPath), cleanValue);
 
     if (!(await fileExists(targetPath))) {
-      missing.push(`Missing local asset: ${cleanValue}`);
+      missing.push(`Missing local asset from ${relativeHtmlPath}: ${cleanValue}`);
     }
   }
 
@@ -99,6 +121,10 @@ async function build() {
     await copyRelative(file);
   }
 
+  for (const file of pageFiles) {
+    await copyRelative(file);
+  }
+
   for (const file of slideFiles) {
     await copyRelative(path.join("H100-Course", "slides", file));
   }
@@ -111,7 +137,11 @@ async function build() {
   await writeFile(path.join(outDir, "404.html"), indexHtml);
   await writeFile(path.join(outDir, ".nojekyll"), "");
 
-  await validateIndex();
+  const htmlFilesToValidate = ["index.html", "slides.html", ...pageFiles];
+
+  for (const htmlFile of htmlFilesToValidate) {
+    await validateHtml(htmlFile);
+  }
 
   console.log("Built GitHub Pages bundle in docs/");
 }
