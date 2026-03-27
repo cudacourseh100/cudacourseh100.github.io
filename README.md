@@ -22,6 +22,10 @@ The repo includes a workflow at `.github/workflows/pages.yml` that builds the si
 
 The workflow runs:
 
+`git clone --depth 1 --filter=blob:none --sparse https://github.com/cudacourseh100/H100-Course.git H100-Course`
+
+`git clone --depth 1 --filter=blob:none --sparse https://github.com/pranjalssh/fast.cu files/fast.cu`
+
 `node scripts/build-pages.mjs`
 
 You can still rebuild locally before pushing if you want to preview the exact Pages bundle:

@@ -32,6 +32,17 @@ jobs:
         with:
           node-version: 20
 
+      - name: Fetch Course Slides Source
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/cudacourseh100/H100-Course.git H100-Course
+          git -C H100-Course sparse-checkout set slides
+
+      - name: Fetch fast.cu Source
+        run: |
+          mkdir -p files
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/pranjalssh/fast.cu files/fast.cu
+          git -C files/fast.cu sparse-checkout set examples/matmul
+
       - name: Build GitHub Pages bundle
         run: node scripts/build-pages.mjs
 
