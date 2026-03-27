@@ -58,9 +58,13 @@ async function ensureDir(targetPath) {
   await mkdir(path.dirname(targetPath), { recursive: true });
 }
 
-async function copyRelative(fromRelative, toRelative = fromRelative) {
+async function copyRelative(fromRelative, toRelative = fromRelative, { optional = false } = {}) {
   const sourcePath = path.join(rootDir, fromRelative);
   const targetPath = path.join(outDir, toRelative);
+  if (optional && !(await fileExists(sourcePath))) {
+    console.warn(`  Skipping (not found): ${fromRelative}`);
+    return;
+  }
   await ensureDir(targetPath);
   await cp(sourcePath, targetPath, { recursive: true });
 }
@@ -104,7 +108,12 @@ async function validateHtml(relativeHtmlPath) {
     const targetPath = path.resolve(path.dirname(htmlPath), cleanValue);
 
     if (!(await fileExists(targetPath))) {
-      missing.push(`Missing local asset from ${relativeHtmlPath}: ${cleanValue}`);
+      // Slide PDFs and code files may be absent in CI; warn instead of fail
+      if (cleanValue.endsWith(".pdf") || cleanValue.startsWith("files/") || cleanValue.startsWith("../files/")) {
+        console.warn(`  Warning: optional asset missing from ${relativeHtmlPath}: ${cleanValue}`);
+      } else {
+        missing.push(`Missing local asset from ${relativeHtmlPath}: ${cleanValue}`);
+      }
     }
   }
 
@@ -126,11 +135,11 @@ async function build() {
   }
 
   for (const file of slideFiles) {
-    await copyRelative(path.join("H100-Course", "slides", file));
+    await copyRelative(path.join("H100-Course", "slides", file), undefined, { optional: true });
   }
 
   for (const file of codeFiles) {
-    await copyRelative(path.join("files", file));
+    await copyRelative(path.join("files", file), undefined, { optional: true });
   }
 
   const indexHtml = await readFile(path.join(outDir, "index.html"), "utf8");
