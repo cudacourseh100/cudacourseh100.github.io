@@ -58,6 +58,7 @@
       </button>
       <nav class="site-nav" id="site-nav" aria-label="Primary">
         <a href="#why">Why Hopper</a>
+        <a href="#faq">FAQ</a>
         <a href="#lessons">Lessons</a>
         <a href="#explore">Explore</a>
         <a href="#pipelines">Pipelines</a>
@@ -256,6 +257,81 @@
                 <p>
                   NVLink, Stream-K scheduling, NCCL setup, PMIx, and Slurm show up because real training systems do not
                   stop at one GPU, and neither should the mental model.
+                </p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="statement" id="faq" data-reveal>
+        <div class="section-shell">
+          <div class="section-head">
+            <p class="section-kicker">FAQ</p>
+            <h2>What serious learners usually want to know before they start.</h2>
+            <p>
+              Short answers about prerequisites, scope, and what this course is actually trying to teach.
+            </p>
+          </div>
+
+          <div class="principles">
+            <article class="principle" data-reveal>
+              <p class="principle-index">Q1</p>
+              <div>
+                <h3>Is this a beginner CUDA course?</h3>
+                <p>
+                  No. It assumes you already know C or C++, can read normal CUDA kernels, and want the Hopper
+                  execution model itself. The right entry point is still <a href="pages/lesson-1.html">lesson 1</a>,
+                  but the tone stays advanced from the start.
+                </p>
+              </div>
+            </article>
+
+            <article class="principle" data-reveal>
+              <p class="principle-index">Q2</p>
+              <div>
+                <h3>What does the course actually teach?</h3>
+                <p>
+                  It teaches Hopper mechanisms directly: asynchronous execution, <code>mbarrier</code>, clusters,
+                  distributed shared memory, <code>CUtensorMap</code>, <code>cp.async.bulk</code>, WGMMA,
+                  warp-specialized kernel design, and the multi-GPU stack that shows up in real training systems.
+                </p>
+              </div>
+            </article>
+
+            <article class="principle" data-reveal>
+              <p class="principle-index">Q3</p>
+              <div>
+                <h3>Does it cover TMA and WGMMA in detail?</h3>
+                <p>
+                  Yes. <a href="pages/lesson-4.html">Lesson 4</a> and <a href="pages/lesson-5.html">lesson 5</a>
+                  cover cuTensorMap, TMA, and <code>cp.async.bulk</code>. <a href="pages/lesson-6.html">Lesson 6</a>
+                  and <a href="pages/lesson-7.html">lesson 7</a> cover WGMMA issue, wait logic, descriptors,
+                  <code>stmatrix</code>, FP8, and sparse behavior.
+                </p>
+              </div>
+            </article>
+
+            <article class="principle" data-reveal>
+              <p class="principle-index">Q4</p>
+              <div>
+                <h3>Does the course include multi-GPU topics?</h3>
+                <p>
+                  Yes. <a href="pages/lesson-9.html">Lesson 9</a> and <a href="pages/lesson-10.html">lesson 10</a>
+                  cover NVLink, NVSwitch, topology, Slurm, PMIx, NCCL communicators, collectives, and distributed
+                  training patterns.
+                </p>
+              </div>
+            </article>
+
+            <article class="principle" data-reveal>
+              <p class="principle-index">Q5</p>
+              <div>
+                <h3>Why is H100 different from older CUDA mental models?</h3>
+                <p>
+                  Because Hopper is built around overlap-first execution. Request and completion are no longer one
+                  mental event, and the course keeps returning to that point through barriers, descriptor-backed
+                  movement, shared-memory staging, and warpgroup tensor-core issue.
                 </p>
               </div>
             </article>
@@ -1009,6 +1085,7 @@
       <nav class="footer-nav" aria-label="Footer">
         <a href="#top">Home</a>
         <a href="#lessons">Lessons</a>
+        <a href="#faq">FAQ</a>
         <a href="#explore">Explore</a>
         <a href="#pipelines">Pipelines</a>
         <a href="#visuals">Visuals</a>

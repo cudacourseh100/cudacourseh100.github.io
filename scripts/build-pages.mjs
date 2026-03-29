@@ -28,6 +28,34 @@ const courseTopics = [
   "multi-GPU orchestration",
 ];
 
+const homeFaqs = [
+  {
+    question: "Is this a beginner CUDA course?",
+    answer:
+      "No. The course assumes you already know C or C++, can read CUDA kernels, and want the Hopper-specific execution model rather than beginner CUDA onboarding.",
+  },
+  {
+    question: "What does the course actually teach?",
+    answer:
+      "It teaches Hopper and H100 mechanisms directly: asynchronous execution, mbarrier, thread block clusters, distributed shared memory, cuTensorMap, cp.async.bulk, WGMMA, warp-specialized kernel design, and multi-GPU orchestration.",
+  },
+  {
+    question: "Does the course cover WGMMA and Tensor Memory Accelerator?",
+    answer:
+      "Yes. WGMMA is covered across lessons 6 and 7, while TMA and cuTensorMap are covered in lessons 4 and 5 as part of Hopper's descriptor-driven asynchronous data movement model.",
+  },
+  {
+    question: "Does the course include multi-GPU topics?",
+    answer:
+      "Yes. Lessons 9 and 10 cover NVLink, NVSwitch, topology, Slurm, PMIx, NCCL communicators, collectives, and distributed training patterns.",
+  },
+  {
+    question: "Why is H100 different from older CUDA mental models?",
+    answer:
+      "Because Hopper shifts the programming model toward overlap-first execution: asynchronous copies, barriers, wait logic, descriptor-backed movement, and warpgroup tensor-core issue become central instead of secondary details.",
+  },
+];
+
 const lessonPages = [
   {
     file: "pages/lesson-1.html",
@@ -371,6 +399,19 @@ function buildStructuredData(meta) {
             name: lesson.shortTitle,
           })),
         },
+        {
+          "@type": "FAQPage",
+          "@id": `${homeUrl}#faq`,
+          url: homeUrl,
+          mainEntity: homeFaqs.map((entry) => ({
+            "@type": "Question",
+            name: entry.question,
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: entry.answer,
+            },
+          })),
+        },
       ],
     };
   }
@@ -609,6 +650,8 @@ async function build() {
   for (const file of rootFiles) {
     await copyRelative(file);
   }
+
+  await copyRelative("markdown", "markdown", { optional: true });
 
   for (const file of pageFiles) {
     await copyRelative(file);
