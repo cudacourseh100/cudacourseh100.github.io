@@ -18,6 +18,11 @@
   --font-mono: "IBM Plex Mono", monospace;
   --shadow-soft: 0 24px 80px rgba(7, 13, 20, 0.25);
   --ease-out: cubic-bezier(0.18, 0.9, 0.22, 1);
+  --type-hero-title: clamp(3.05rem, 6.85vw, 7.35rem);
+  --type-slides-title: clamp(2.65rem, 5.9vw, 5.35rem);
+  --type-lesson-title: clamp(2.35rem, 5.1vw, 4.45rem);
+  --type-hero-title-mobile: clamp(1.95rem, 10vw, 4.15rem);
+  --type-lesson-title-mobile: clamp(2rem, 9.5vw, 3.65rem);
 }
 
 *,
@@ -260,7 +265,7 @@ body.is-nav-open .nav-toggle-icon span:nth-child(3) {
   max-width: 100%;
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(3.6rem, 8vw, 8.8rem);
+  font-size: var(--type-hero-title);
   line-height: 0.88;
   letter-spacing: -0.04em;
   text-transform: uppercase;
@@ -1180,7 +1185,7 @@ body.is-nav-open .nav-toggle-icon span:nth-child(3) {
 .slides-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(3rem, 7vw, 6.2rem);
+  font-size: var(--type-slides-title);
   line-height: 0.9;
   letter-spacing: -0.04em;
   text-transform: uppercase;
@@ -1406,7 +1411,7 @@ body.is-nav-open .nav-toggle-icon span:nth-child(3) {
   margin: 0;
   font-family: var(--font-display);
   max-width: min(100%, 16ch);
-  font-size: clamp(2.7rem, 6vw, 5.2rem);
+  font-size: var(--type-lesson-title);
   line-height: 0.92;
   letter-spacing: -0.04em;
   text-transform: uppercase;
@@ -2011,11 +2016,11 @@ body.is-nav-open .nav-toggle-icon span:nth-child(3) {
 
   .hero-title {
     width: auto;
-    font-size: clamp(2.2rem, 11.5vw, 4.9rem);
+    font-size: var(--type-hero-title-mobile);
   }
 
   .lesson-hero-title {
-    font-size: clamp(2.3rem, 11vw, 4.2rem);
+    font-size: var(--type-lesson-title-mobile);
   }
 
   .hero-summary {
