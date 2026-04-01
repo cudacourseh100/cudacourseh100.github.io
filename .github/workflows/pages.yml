@@ -57,3 +57,9 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Verify live SEO endpoints
+        env:
+          MAX_ATTEMPTS: 18
+          SLEEP_SECONDS: 10
+        run: bash scripts/verify-live-seo.sh "${{ steps.deployment.outputs.page_url }}"
