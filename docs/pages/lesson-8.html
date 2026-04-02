@@ -218,6 +218,7 @@
               <p class="section-kicker">Companion Links</p>
               <a class="lesson-text-link" href="lesson-7.html">Back to Lesson 7</a>
               <a class="lesson-text-link" href="lesson-8.1.html">Open Lesson 8.1</a>
+              <a class="lesson-text-link" href="lesson-8.2.html">Open Lesson 8.2</a>
               <a class="lesson-text-link" href="../files/sm90_gemm_tma_warpspecialized_pingpong.hpp" target="_blank" rel="noreferrer">Open Ping-Pong Mainloop</a>
               <a class="lesson-text-link" href="../files/sm90_gemm_tma_warpspecialized_cooperative.hpp" target="_blank" rel="noreferrer">Open Cooperative Mainloop</a>
               <a class="lesson-text-link" href="../files/sm90_tile_scheduler_stream_k.hpp" target="_blank" rel="noreferrer">Open Stream-K Scheduler</a>
@@ -525,9 +526,9 @@ Consumer waits oldest -&gt; arrives EMPTY to release the stage</code></pre>
             <section class="lesson-chapter" id="continue" data-reveal>
               <h2>Continue the course</h2>
               <p>
-                Lesson 8 turns the Hopper primitives into full-kernel machinery. Before leaving the kernel layer
-                entirely, the Stream-K addendum zooms into the tail-balancing scheduler that keeps persistent kernels
-                busy when a plain tile-parallel launch starts wasting SMs.
+                Lesson 8 turns the Hopper primitives into full-kernel machinery. The next two supplements stay inside
+                the kernel layer: first Stream-K for tail balancing, then kernel launch control for the handoff
+                between dependent grids before the course moves out to multi-GPU systems.
               </p>
               <div class="lesson-resource-grid">
                 <a class="lesson-resource-card" href="lesson-8.1.html">
@@ -535,15 +536,15 @@ Consumer waits oldest -&gt; arrives EMPTY to release the stage</code></pre>
                   <h3>Stream-K</h3>
                   <p>Continue into split-K work units, fixup, locks, and the scheduler logic that targets the tail wave directly.</p>
                 </a>
+                <a class="lesson-resource-card" href="lesson-8.2.html">
+                  <span class="lesson-resource-label">Then</span>
+                  <h3>Kernel Launch</h3>
+                  <p>Follow the handoff into launch bounds, dependent grids, programmatic stream serialization, and launch-window tuning.</p>
+                </a>
                 <a class="lesson-resource-card" href="../files/sm90_gemm_tma_warpspecialized_pingpong.hpp" target="_blank" rel="noreferrer">
                   <span class="lesson-resource-label">Code Anchor</span>
                   <h3>Ping-Pong Mainloop</h3>
                   <p>See ordered math warpgroups, persistent tile iteration, and epilogue overlap in the repo's SM90 ping-pong kernel.</p>
-                </a>
-                <a class="lesson-resource-card" href="../files/sm90_tile_scheduler_stream_k.hpp" target="_blank" rel="noreferrer">
-                  <span class="lesson-resource-label">Code Anchor</span>
-                  <h3>Stream-K Scheduler</h3>
-                  <p>Open the work-tile bookkeeping and fixup logic that turns split-K style scheduling into something the kernel can execute.</p>
                 </a>
                 <a class="lesson-resource-card" href="lesson-9.html">
                   <span class="lesson-resource-label">After That</span>

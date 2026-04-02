@@ -15,7 +15,7 @@ topics:
   - "Interleave"
   - "L2 Promotion"
 code_refs:
-  - "fast.cu/examples/matmul/matmul_12.cu"
+  - "fast.cu/examples/matmul/matmul_12.cuh"
 generated_from:
   - "pages/lesson-4.html"
   - "H100-Course/slides/4. cuTensorMap.pdf"

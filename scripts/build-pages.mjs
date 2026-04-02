@@ -25,6 +25,7 @@ const courseTopics = [
   "cp.async.bulk",
   "WGMMA",
   "warp-specialized kernel design",
+  "kernel launch control",
   "multi-GPU orchestration",
 ];
 
@@ -157,6 +158,17 @@ const lessonPages = [
     tags: ["Stream-K", "tile scheduling", "scheduler state", "fixup", "GEMM utilization"],
   },
   {
+    file: "pages/lesson-8.2.html",
+    path: "/pages/lesson-8.2.html",
+    lessonNumber: "8.2",
+    shortTitle: "Kernel Launch",
+    title: "Kernel Launch Control on Hopper | Lesson 8.2 | CUDA Programming for NVIDIA H100s",
+    description:
+      "Kernel launch control on Hopper: launch bounds, grid constants, dependent grids, programmatic stream serialization, and overlap tuning between producer and consumer kernels.",
+    section: "Kernel Launch Control",
+    tags: ["kernel launch", "dependent grids", "programmatic stream serialization", "griddepcontrol", "launch bounds"],
+  },
+  {
     file: "pages/lesson-9.html",
     path: "/pages/lesson-9.html",
     lessonNumber: 9,
@@ -195,6 +207,7 @@ const slideFiles = [
   "7. Wgmma part 2.pdf",
   "8. Kernel Design.pdf",
   "8.1 Stream-K.pdf",
+  "8.2 Kernel Launch.pdf",
   "9. Multi GPU.pdf",
   "10. Multi GPU  Part 2.pdf",
 ];
@@ -210,6 +223,7 @@ const codeFiles = [
   "sm90_tile_scheduler_stream_k.hpp",
   "fast.cu/README.md",
   "fast.cu/LICENSE",
+  "fast.cu/examples/matmul/pingpong_experimental.cuh",
   "fast.cu/examples/matmul/matmul_12.cuh",
 ];
 

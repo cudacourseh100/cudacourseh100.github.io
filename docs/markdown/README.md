@@ -20,6 +20,7 @@ wget -O lesson-06-wgmma-part-1.md https://cudacourseh100.github.io/markdown/less
 - `lessons/lesson-07-wgmma-part-2.md` - Lesson 7: WGMMA Part 2
 - `lessons/lesson-08-kernel-design.md` - Lesson 8: Kernel Design
 - `lessons/lesson-08-1-stream-k.md` - Lesson 8.1: Stream-K
+- `lessons/lesson-08-2-kernel-launch.md` - Lesson 8.2: Kernel Launch
 - `lessons/lesson-09-multi-gpu-part-1.md` - Lesson 9: Multi GPU Part 1
 - `lessons/lesson-10-multi-gpu-part-2.md` - Lesson 10: Multi GPU Part 2
 

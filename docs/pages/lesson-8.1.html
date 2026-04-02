@@ -216,6 +216,7 @@
             <div class="lesson-sidebar-card">
               <p class="section-kicker">Companion Links</p>
               <a class="lesson-text-link" href="lesson-8.html">Back to Lesson 8</a>
+              <a class="lesson-text-link" href="lesson-8.2.html">Open Lesson 8.2</a>
               <a class="lesson-text-link" href="lesson-9.html">Open Lesson 9</a>
               <a class="lesson-text-link" href="../files/sm90_tile_scheduler_stream_k.hpp" target="_blank" rel="noreferrer">Open Stream-K Scheduler</a>
               <a class="lesson-text-link" href="../files/sm90_tile_scheduler.hpp" target="_blank" rel="noreferrer">Open Base Persistent Scheduler</a>
@@ -498,12 +499,18 @@ final split   -> wait for prior progress, load-add all required partials, run ep
             <section class="lesson-chapter" id="continue" data-reveal>
               <h2>Continue the course</h2>
               <p>
-                The scheduler addendum finishes the single-node kernel story. The next lesson moves out of one GPU and
-                into the node and cluster fabrics that make large H100 training systems possible in the first place.
+                The scheduler addendum finishes the tail-balancing story, but one more kernel supplement remains. The
+                next page looks at the launch boundary itself: launch bounds, dependent grids, programmatic stream
+                serialization, and how Hopper overlaps the boot of one grid with the tail of another.
               </p>
               <div class="lesson-resource-grid">
-                <a class="lesson-resource-card" href="lesson-9.html">
+                <a class="lesson-resource-card" href="lesson-8.2.html">
                   <span class="lesson-resource-label">Next Lesson</span>
+                  <h3>Kernel Launch</h3>
+                  <p>Continue into dependent launches, host-side serialization control, and the overlap window between producer and consumer grids.</p>
+                </a>
+                <a class="lesson-resource-card" href="lesson-9.html">
+                  <span class="lesson-resource-label">After That</span>
                   <h3>Multi GPU Part 1</h3>
                   <p>Continue into NVLink, NVSwitch, ConnectX, rails, topology, and why one fast kernel is still not enough at system scale.</p>
                 </a>

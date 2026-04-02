@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="Kernel launch control on Hopper: launch bounds, grid constants, dependent grids, programmatic stream serialization, and overlap tuning between producer and consumer kernels.">
+<meta name="theme-color" content="#08111d">
+        <title>Kernel Launch Control on Hopper | Lesson 8.2 | CUDA Programming for NVIDIA H100s</title>
+    <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700;800&family=Urbanist:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    >
+    <link rel="stylesheet" href="../styles.css">
+  <!-- SEO:BEGIN -->
+    <meta name="author" content="Prateek Shukla">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <link rel="canonical" href="https://cudacourseh100.github.io/pages/lesson-8.2.html">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:site_name" content="CUDA Programming for NVIDIA H100s">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Kernel Launch | Lesson 8.2">
+    <meta property="og:description" content="Kernel launch control on Hopper: launch bounds, grid constants, dependent grids, programmatic stream serialization, and overlap tuning between producer and consumer kernels.">
+    <meta property="og:url" content="https://cudacourseh100.github.io/pages/lesson-8.2.html">
+    <meta property="og:image" content="https://cudacourseh100.github.io/social-card.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="CUDA Programming for NVIDIA H100s">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Kernel Launch | Lesson 8.2">
+    <meta name="twitter:description" content="Kernel launch control on Hopper: launch bounds, grid constants, dependent grids, programmatic stream serialization, and overlap tuning between producer and consumer kernels.">
+    <meta name="twitter:image" content="https://cudacourseh100.github.io/social-card.png">
+    <meta name="twitter:image:alt" content="CUDA Programming for NVIDIA H100s">
+    <meta property="article:author" content="Prateek Shukla">
+    <meta property="article:section" content="Kernel Launch Control">
+    <meta property="article:tag" content="kernel launch">
+    <meta property="article:tag" content="dependent grids">
+    <meta property="article:tag" content="programmatic stream serialization">
+    <meta property="article:tag" content="griddepcontrol">
+    <meta property="article:tag" content="launch bounds">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "TechArticle",
+          "@id": "https://cudacourseh100.github.io/pages/lesson-8.2.html#article",
+          "url": "https://cudacourseh100.github.io/pages/lesson-8.2.html",
+          "headline": "Kernel Launch",
+          "name": "Kernel Launch",
+          "description": "Kernel launch control on Hopper: launch bounds, grid constants, dependent grids, programmatic stream serialization, and overlap tuning between producer and consumer kernels.",
+          "inLanguage": "en",
+          "author": {
+            "@type": "Person",
+            "@id": "https://cudacourseh100.github.io/#person",
+            "name": "Prateek Shukla",
+            "url": "https://cudacourseh100.github.io/"
+          },
+          "mainEntityOfPage": "https://cudacourseh100.github.io/pages/lesson-8.2.html",
+          "articleSection": "Kernel Launch Control",
+          "about": [
+            "kernel launch",
+            "dependent grids",
+            "programmatic stream serialization",
+            "griddepcontrol",
+            "launch bounds"
+          ],
+          "isPartOf": {
+            "@type": "Course",
+            "name": "CUDA Programming for NVIDIA H100s",
+            "url": "https://cudacourseh100.github.io/"
+          }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://cudacourseh100.github.io/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Kernel Launch",
+              "item": "https://cudacourseh100.github.io/pages/lesson-8.2.html"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+    <!-- SEO:END -->
+  </head>
+  <body class="lesson-view lesson-view-kernel-launch">
+    <header class="site-header">
+      <a class="header-mark" href="../index.html#top" aria-label="CUDA Programming for NVIDIA H100s">
+        <span>Prateek Shukla</span>
+        <span>CUDA Programming for NVIDIA H100s</span>
+      </a>
+      <button
+        class="nav-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="site-nav"
+        aria-label="Open navigation"
+      >
+        <span class="nav-toggle-label">Menu</span>
+        <span class="nav-toggle-icon" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+      <nav class="site-nav" id="site-nav" aria-label="Lesson navigation">
+        <a href="#overview">Overview</a>
+        <a href="#controls">Controls</a>
+        <a href="#serialization">Serialization</a>
+        <a href="#gdc">Dependent Launch</a>
+        <a href="#window">Overlap Window</a>
+        <a href="#takeaways">Takeaways</a>
+        <a href="../index.html#explore">Explore</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="lesson-hero">
+        <div class="section-shell lesson-hero-grid">
+          <div class="lesson-hero-copy">
+            <p class="hero-credit">Explore Here / Lesson 08.2</p>
+            <h1 class="lesson-hero-title">Kernel Launch</h1>
+            <p class="lesson-hero-summary">
+              Lesson 8.2 is the handoff supplement. The point is not just how to launch a kernel, but how Hopper lets
+              you shape launch residency, mark grid-lifetime parameters, and relax stream serialization so the next
+              grid can boot before the previous one has globally retired.
+            </p>
+            <div class="lesson-chip-list" aria-label="Lesson 8.2 topics">
+              <span class="lesson-chip">Launch Bounds</span>
+              <span class="lesson-chip">Grid Constants</span>
+              <span class="lesson-chip">Dependent Grids</span>
+              <span class="lesson-chip">GDC</span>
+              <span class="lesson-chip">L2 Prefetch</span>
+            </div>
+            <div class="hero-actions">
+              <a
+                class="button button-primary"
+                href="../H100-Course/slides/8.2 Kernel Launch.pdf"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Slide Deck
+              </a>
+              <a class="button button-secondary" href="../index.html#explore">Back to Explore</a>
+            </div>
+          </div>
+
+          <aside class="lesson-meta-card" data-reveal>
+            <p class="lesson-meta-eyebrow">What Changes Here</p>
+            <h2>Grid start time and data safety become separate control points.</h2>
+            <p>
+              Hopper lets launch policy become part of optimization. The lesson isolates the point where a multi-kernel
+              pipeline stops being "kernel A then kernel B" and becomes a coordinated overlap problem with scheduler,
+              memory, and host-launch consequences.
+            </p>
+            <dl class="lesson-facts">
+              <div>
+                <dt>Course Position</dt>
+                <dd>Lesson 08.2, after Stream-K and before Multi GPU</dd>
+              </div>
+              <div>
+                <dt>Main Shift</dt>
+                <dd>The machine can admit a dependent grid early while still fencing the exact reads that would break correctness.</dd>
+              </div>
+              <div>
+                <dt>Companion Deck</dt>
+                <dd><code>8.2 Kernel Launch.pdf</code></dd>
+              </div>
+              <div>
+                <dt>Concrete Anchors</dt>
+                <dd><code>matmul_12.cuh</code>, <code>pingpong_experimental.cuh</code>, <code>cudaLaunchKernelEx</code></dd>
+              </div>
+            </dl>
+          </aside>
+        </div>
+      </section>
+
+      <section class="lesson-body">
+        <div class="section-shell lesson-layout">
+          <aside class="lesson-sidebar">
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">On This Page</p>
+              <nav class="lesson-side-nav" aria-label="Lesson 8.2 sections">
+                <a href="#overview">Why launch control matters</a>
+                <a href="#controls">Compile-time and launch controls</a>
+                <a href="#serialization">Why same-stream kernels stall</a>
+                <a href="#gdc">Dependent launch protocol</a>
+                <a href="#window">Tuning the overlap window</a>
+                <a href="#takeaways">Practical guidance</a>
+                <a href="#continue">Continue the course</a>
+              </nav>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Key Takeaways</p>
+              <ul class="lesson-mini-list">
+                <li>Multi-kernel boundaries are often the correct design, not a failure to fuse hard enough.</li>
+                <li>Dependent launch works by separating scheduler eligibility from memory-read safety.</li>
+                <li>Overlap only helps when the launch window is large enough to hide startup cost but not so large that it creates damaging contention.</li>
+              </ul>
+            </div>
+
+            <div class="lesson-sidebar-card">
+              <p class="section-kicker">Companion Links</p>
+              <a class="lesson-text-link" href="lesson-8.1.html">Back to Lesson 8.1</a>
+              <a class="lesson-text-link" href="lesson-9.html">Open Lesson 9</a>
+              <a class="lesson-text-link" href="../files/fast.cu/examples/matmul/matmul_12.cuh" target="_blank" rel="noreferrer">Open <code>matmul_12.cuh</code></a>
+              <a class="lesson-text-link" href="../files/fast.cu/examples/matmul/pingpong_experimental.cuh" target="_blank" rel="noreferrer">Open <code>pingpong_experimental.cuh</code></a>
+            </div>
+          </aside>
+
+          <article class="lesson-article">
+            <section class="lesson-chapter" id="overview" data-reveal>
+              <h2>Why kernel launch deserves its own lesson</h2>
+              <p>
+                The notes are explicit that multi-kernel design is not just cleanup work after the "real" optimization.
+                Some post-processing stages genuinely need a boundary. Epilogues hit a practical ceiling, fused work
+                raises register pressure, and cross-tile operations like LayerNorm or Softmax need a point where one
+                phase is complete before the next phase reasons over its output.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>What forces the boundary</h3>
+                  <p>
+                    Cross-tile reductions, heavy epilogues, and state that no longer fits comfortably beside the
+                    accumulator mainloop make a clean handoff the right architecture.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>What Hopper changes</h3>
+                  <p>
+                    The handoff no longer has to mean "producer fully retires, then consumer cold-starts." Hopper can
+                    overlap the boot path if the launch packet and instruction stream cooperate.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>The lesson's core rule</h3>
+                  <p>
+                    Start early, read late. Let the dependent grid reserve context and do safe setup work before the
+                    producer is globally finished, but fence dependency-sensitive reads until it is actually safe.
+                  </p>
+                </article>
+              </div>
+              <div class="lesson-note">
+                <p>
+                  <strong>Optimization target:</strong> do not ask "how do I avoid multiple kernels?" Ask "how do I
+                  make the boundary cheap enough that the right decomposition still runs close to full speed?"
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="controls" data-reveal>
+              <h2>Launch controls span both compile-time shape and runtime authority</h2>
+              <p>
+                Some launch decisions are embedded into the kernel signature and codegen assumptions. Others live in
+                the host launch packet. This supplement keeps those layers separate because Hopper performance depends
+                on knowing which knob changes occupancy, which knob changes parameter lifetime, and which knob changes
+                scheduler policy.
+              </p>
+              <table class="lesson-table" aria-label="Kernel launch controls">
+                <thead>
+                  <tr>
+                    <th>Control</th>
+                    <th>What it expresses</th>
+                    <th>Why it matters here</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>__cluster_dims__(x, y, z)</code></td>
+                    <td>Compile-time thread block cluster shape.</td>
+                    <td>Important on SM90 because cluster residency and multicast behavior are part of real kernel design.</td>
+                  </tr>
+                  <tr>
+                    <td><code>__launch_bounds__(...)</code></td>
+                    <td>Bounds on thread count and occupancy assumptions.</td>
+                    <td>Launch shape is part of the resource budget that later overlap decisions have to live inside.</td>
+                  </tr>
+                  <tr>
+                    <td><code>__maxnreg__(N)</code></td>
+                    <td>Register cap per thread.</td>
+                    <td>Matters when fused work and dependent-launch overlap are both pressuring residency.</td>
+                  </tr>
+                  <tr>
+                    <td><code>__grid_constant__</code></td>
+                    <td>Read-only grid-lifetime kernel parameter.</td>
+                    <td>Exactly the kind of metadata path Hopper uses for descriptors and launch-stable control data.</td>
+                  </tr>
+                  <tr>
+                    <td><code>cudaLaunchKernelEx</code> + attributes</td>
+                    <td>Host-side runtime authority over launch behavior.</td>
+                    <td>This is where programmatic stream serialization permission is actually granted.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                The local fast.cu examples are useful here even though they are not dependent-launch demos. Files like
+                <code>matmul_12.cuh</code> and <code>pingpong_experimental.cuh</code> show the launch-shape side of the
+                story directly: cluster dimensions, launch bounds, and grid-constant descriptors are encoded into the
+                kernels before any runtime launch packet ever appears.
+              </p>
+              <pre class="lesson-pre"><code>__global__ __launch_bounds__(NUM_THREADS)
+void __cluster_dims__(CLUSTER_M * CLUSTER_N, 1, 1)
+matmulKernel12(
+    int M,
+    int N,
+    int K,
+    const __grid_constant__ CUtensorMap tensorMapC,
+    const __grid_constant__ CUtensorMap tensorMapA,
+    const __grid_constant__ CUtensorMap tensorMapB,
+    int* dspace);</code></pre>
+            </section>
+
+            <section class="lesson-chapter" id="serialization" data-reveal>
+              <h2>Default stream serialization leaves a tail-latency hole</h2>
+              <p>
+                Under the default rules, kernels launched on the same stream behave like an ordered queue. Kernel B is
+                not eligible until Kernel A fully retires. That means the handoff is tied to whole-grid retirement
+                rather than to the earlier moment when enough of the producer's work is already complete for the next
+                stage to begin preparing.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>Why the tail hurts</h3>
+                  <p>
+                    Near the end of the producer grid, only a shrinking subset of SMs still has work. The rest of the
+                    machine can sit idle even when the dependent grid is already known and ready to go.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>What is wasted</h3>
+                  <p>
+                    The cost is not just empty cycles. The dependent grid also pays a cold-start penalty later because
+                    no context was admitted and no safe prefetch work was allowed to begin early.
+                  </p>
+                </article>
+              </div>
+              <pre class="lesson-pre"><code>Default behavior:
+producer grid fully retires
+-> dependent grid becomes eligible
+-> dependent grid starts booting</code></pre>
+              <p>
+                That is the exact serialization wall this supplement is trying to soften. The goal is not to violate
+                correctness. The goal is to untie "eligible to boot" from "safe to read dependency-sensitive data."
+              </p>
+            </section>
+
+            <section class="lesson-chapter" id="gdc" data-reveal>
+              <h2>Dependent launch works because Hopper splits scheduler permission from read permission</h2>
+              <p>
+                Grid dependency control introduces two control points. One is producer-side and talks to the scheduler.
+                The other is consumer-side and fences execution until the dependency has actually resolved. That split
+                is the mechanism that makes overlap possible without turning the handoff into a race.
+              </p>
+              <table class="lesson-table" aria-label="Grid dependency control instructions">
+                <thead>
+                  <tr>
+                    <th>Mechanism</th>
+                    <th>What it does</th>
+                    <th>What it does not do</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>griddepcontrol.launch_dependents</code></td>
+                    <td>Signals that a dependent grid may begin booting before the producer grid has globally retired.</td>
+                    <td>It does not make dependency-sensitive loads safe on its own.</td>
+                  </tr>
+                  <tr>
+                    <td><code>griddepcontrol.wait</code></td>
+                    <td>Stops dependent warps at the exact fence where unresolved reads would become unsafe.</td>
+                    <td>It does not itself grant early eligibility; it only fences execution inside the dependent grid.</td>
+                  </tr>
+                  <tr>
+                    <td><code>cudaLaunchAttributeProgrammaticStreamSerialization</code></td>
+                    <td>Host-side permission bit that tells the launch machinery to honor the dependent-launch protocol.</td>
+                    <td>It does not replace the device-side instructions; the packet and the instruction stream are both required.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p>
+                The notes make the host-authority point strongly: device instructions do not override stream policy by
+                themselves. If the host launch descriptor does not opt in, strict same-stream serialization remains in
+                force even if the kernel contains the relevant instructions.
+              </p>
+              <pre class="lesson-pre"><code>// producer kernel on the stream
+producer_kernel&lt;&lt;&lt;gridA, blockA, 0, stream&gt;&gt;&gt;(...);
+
+// dependent kernel with programmatic stream serialization permission
+cudaLaunchAttribute attr[1];
+attr[0].id = cudaLaunchAttributeProgrammaticStreamSerialization;
+attr[0].val.programmaticStreamSerializationAllowed = 1;
+
+cudaLaunchConfig_t cfg{};
+cfg.gridDim = gridB;
+cfg.blockDim = blockB;
+cfg.attrs = attr;
+cfg.numAttrs = 1;
+
+cudaLaunchKernelEx(&amp;cfg, consumer_kernel, ...);</code></pre>
+              <div class="lesson-note">
+                <p>
+                  <strong>The conceptual split:</strong> producer code says "the dependent may boot now." Dependent
+                  code says "I will stop right here until the unsafe reads are truly safe." Both sides are required.
+                </p>
+              </div>
+            </section>
+
+            <section class="lesson-chapter" id="window" data-reveal>
+              <h2>The overlap window is where the optimization either pays off or collapses</h2>
+              <p>
+                Once the dependent grid can arrive early, the interesting question becomes timing. Launch too late and
+                you hide almost none of the startup cost. Launch too early and the producer and consumer fight over the
+                same execution slots, registers, shared memory, and cache capacity.
+              </p>
+              <div class="lesson-card-grid">
+                <article class="lesson-card">
+                  <h3>The dependent's wall</h3>
+                  <p>
+                    Warps in the dependent grid can run setup code and then park at <code>griddepcontrol.wait</code>.
+                    That reserves execution context early, which is useful but not free.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>The producer's green light</h3>
+                  <p>
+                    <code>launch_dependents</code> should be placed at the latest safe point that still gives real
+                    overlap. Too conservative wastes the feature. Too aggressive creates contention and can lower total
+                    throughput.
+                  </p>
+                </article>
+                <article class="lesson-card">
+                  <h3>The prefetch split</h3>
+                  <p>
+                    The notes highlight an asymmetric dependent kernel where dependency-bound warps stop at the wait
+                    fence while separate warps prefetch static weights into L2. That keeps the memory system busy while
+                    still respecting correctness for activation reads.
+                  </p>
+                </article>
+              </div>
+              <table class="lesson-table" aria-label="Overlap tuning guardrails">
+                <thead>
+                  <tr>
+                    <th>Too little overlap</th>
+                    <th>Too much overlap</th>
+                    <th>Healthy target</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>The dependent grid still pays most of its cold-start cost.</td>
+                    <td>Producer and consumer compete for issue slots, residency, L2, and memory queues.</td>
+                    <td>Launch at the latest safe moment that still hides meaningful startup latency.</td>
+                  </tr>
+                  <tr>
+                    <td>Little net gain from the feature.</td>
+                    <td>Prefetched lines can churn out of L2 before compute needs them.</td>
+                    <td>Prefetch only stable, reusable tensors whose safety is independent of the producer's completion.</td>
+                  </tr>
+                  <tr>
+                    <td>The dependent grid remains mostly idle until the producer is done anyway.</td>
+                    <td>Total runtime can rise even though concurrency looks more impressive on paper.</td>
+                    <td>Watch L2 hit rate, queue pressure, and residency headroom rather than judging overlap by appearance alone.</td>
+                  </tr>
+                </tbody>
+              </table>
+              <pre class="lesson-pre"><code>Dependent-launch protocol:
+producer issues launch_dependents
+-> dependent grid boots
+-> dependency-bound warps stop at wait
+-> dependency resolves
+-> stalled warps continue and consume the produced data</code></pre>
+            </section>
+
+            <section class="lesson-chapter" id="takeaways" data-reveal>
+              <h2>Practical guidance</h2>
+              <ol>
+                <li><strong>Do not treat multi-kernel boundaries as failure.</strong> If the math needs a real boundary, the right question is how to hide its cost, not how to deny that it exists.</li>
+                <li><strong>Keep launch policy layered correctly.</strong> Compile-time launch shape, grid-lifetime parameters, and host-side launch permission solve different problems.</li>
+                <li><strong>Remember the host owns the exception.</strong> Programmatic stream serialization is opt-in behavior, not the default interpretation of same-stream work.</li>
+                <li><strong>Separate boot overlap from read safety.</strong> Early scheduler admission and correct memory visibility are related, but they are not the same event.</li>
+                <li><strong>Tune for net throughput, not for dramatic overlap screenshots.</strong> Concurrency that damages cache residency or queue pressure can easily lose to a slightly later, cleaner launch point.</li>
+              </ol>
+              <h3>Glossary</h3>
+              <table class="lesson-table" aria-label="Lesson 8.2 glossary">
+                <tbody>
+                  <tr>
+                    <th>Programmatic stream serialization</th>
+                    <td>A host-authorized relaxation of default same-stream ordering that allows dependent grids to participate in the launch/wait protocol.</td>
+                  </tr>
+                  <tr>
+                    <th>Launch dependents</th>
+                    <td>The producer-side signal that tells the scheduler a dependent grid may begin booting.</td>
+                  </tr>
+                  <tr>
+                    <th>Dependent wait</th>
+                    <td>The consumer-side fence that stalls warps before dependency-sensitive reads become legal.</td>
+                  </tr>
+                  <tr>
+                    <th>Overlap window</th>
+                    <td>The timing gap between early dependent admission and the moment the unresolved dependency actually becomes safe to consume.</td>
+                  </tr>
+                  <tr>
+                    <th>Grid constant</th>
+                    <td>A read-only kernel parameter guaranteed to stay stable for the lifetime of one launched grid.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="lesson-chapter" id="continue" data-reveal>
+              <h2>Continue the course</h2>
+              <p>
+                This supplement finishes the single-node kernel handoff story. The next lesson leaves kernel boundaries
+                behind and moves into the fabric itself: NVLink, NVSwitch, rails, and the system topology that governs
+                how many H100s become one training machine.
+              </p>
+              <div class="lesson-resource-grid">
+                <a class="lesson-resource-card" href="lesson-9.html">
+                  <span class="lesson-resource-label">Next Lesson</span>
+                  <h3>Multi GPU Part 1</h3>
+                  <p>Continue into DGX H100 topology, NVLink, NVSwitch, ConnectX, rails, and why the communication fabric becomes the new bottleneck.</p>
+                </a>
+                <a class="lesson-resource-card" href="../files/fast.cu/examples/matmul/matmul_12.cuh" target="_blank" rel="noreferrer">
+                  <span class="lesson-resource-label">Code Anchor</span>
+                  <h3><code>matmul_12.cuh</code></h3>
+                  <p>See launch bounds, cluster dimensions, and grid-constant tensor maps inside a concrete Hopper GEMM kernel.</p>
+                </a>
+                <a class="lesson-resource-card" href="../files/fast.cu/examples/matmul/pingpong_experimental.cuh" target="_blank" rel="noreferrer">
+                  <span class="lesson-resource-label">Code Anchor</span>
+                  <h3>Ping-Pong Experimental</h3>
+                  <p>Compare another launch-shape example where cluster-aware kernel setup and descriptor-driven inputs shape the runtime budget.</p>
+                </a>
+                <a class="lesson-resource-card" href="../index.html#explore">
+                  <span class="lesson-resource-label">Explore</span>
+                  <h3>Back to Lesson Dossiers</h3>
+                  <p>Return to the homepage and move through the integrated lesson pages and kernel supplements already wired into the site.</p>
+                </a>
+              </div>
+            </section>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <nav class="footer-nav" aria-label="Footer">
+        <a href="../index.html#top">Home</a>
+        <a href="../index.html#lessons">Lessons</a>
+        <a href="../index.html#explore">Explore</a>
+        <a href="../index.html#visuals">Visuals</a>
+        <a href="../slides.html">Slides</a>
+      </nav>
+      <p>CUDA Programming for NVIDIA H100s</p>
+      <p>Prateek Shukla</p>
+    </footer>
+
+    <script src="../script.js"></script>
+  </body>
+</html>

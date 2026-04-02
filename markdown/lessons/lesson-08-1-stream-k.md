@@ -188,7 +188,7 @@ The notes also mention HyTiS as an alternative way to fight wave quantization. I
 
 ### Continue the course
 
-The scheduler addendum finishes the single-node kernel story. The next lesson moves out of one GPU and into the node and cluster fabrics that make large H100 training systems possible in the first place.
+The scheduler addendum finishes the tail-balancing story, but one more kernel supplement remains. The next page looks at the launch boundary itself: launch bounds, dependent grids, programmatic stream serialization, and how Hopper overlaps the boot of one grid with the tail of another.
 
 ## Full Slide Deck Text
 

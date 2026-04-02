@@ -15,7 +15,7 @@ topics:
   - "bulk_group"
   - "Cache Policy"
 code_refs:
-  - "fast.cu/examples/matmul/matmul_12.cu"
+  - "fast.cu/examples/matmul/matmul_12.cuh"
 generated_from:
   - "pages/lesson-5.html"
   - "H100-Course/slides/5. cp.async.bulk.pdf"

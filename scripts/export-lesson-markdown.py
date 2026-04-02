@@ -43,6 +43,7 @@ LESSONS = [
     LessonSource("7", "wgmma-part-2", "pages/lesson-7.html"),
     LessonSource("8", "kernel-design", "pages/lesson-8.html"),
     LessonSource("8.1", "stream-k", "pages/lesson-8.1.html"),
+    LessonSource("8.2", "kernel-launch", "pages/lesson-8.2.html"),
     LessonSource("9", "multi-gpu-part-1", "pages/lesson-9.html"),
     LessonSource("10", "multi-gpu-part-2", "pages/lesson-10.html"),
 ]
@@ -391,7 +392,7 @@ def build_markdown(lesson: LessonSource) -> tuple[str, str]:
     published_markdown = f"/markdown/lessons/lesson-{file_token}-{lesson.slug}.md"
 
     code_refs = dedupe(
-        re.findall(r"[A-Za-z0-9_./-]+\.(?:cu|cuh|hpp|inl|md)", facts)
+        re.findall(r"[A-Za-z0-9_./-]+\.(?:cuh|cu|hpp|inl|md)", facts)
     )
 
     article = soup.select_one("article.lesson-article")

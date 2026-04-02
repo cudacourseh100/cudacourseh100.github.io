@@ -189,7 +189,7 @@ In the ping-pong design, the handoff is even more structured. One consumer's epi
 
 ### Continue the course
 
-Lesson 8 turns the Hopper primitives into full-kernel machinery. Before leaving the kernel layer entirely, the Stream-K addendum zooms into the tail-balancing scheduler that keeps persistent kernels busy when a plain tile-parallel launch starts wasting SMs.
+Lesson 8 turns the Hopper primitives into full-kernel machinery. The next two supplements stay inside the kernel layer: first Stream-K for tail balancing, then kernel launch control for the handoff between dependent grids before the course moves out to multi-GPU systems.
 
 ## Full Slide Deck Text
 

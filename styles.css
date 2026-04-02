@@ -691,6 +691,11 @@ body.is-nav-open .nav-toggle-icon span:nth-child(3) {
   --explore-accent-alt: #ffb86c;
 }
 
+.explore-card-kernel-launch {
+  --explore-accent: #c8ff7a;
+  --explore-accent-alt: #94f0ff;
+}
+
 .explore-card-multigpu {
   --explore-accent: #ffd166;
   --explore-accent-alt: #8ed6ff;
@@ -1350,6 +1355,12 @@ body.is-nav-open .nav-toggle-icon span:nth-child(3) {
   --lesson-accent: #94f0ff;
   --lesson-accent-alt: #ffb86c;
   --lesson-accent-warm: #dff7ff;
+}
+
+.lesson-view-kernel-launch {
+  --lesson-accent: #c8ff7a;
+  --lesson-accent-alt: #94f0ff;
+  --lesson-accent-warm: #f0ffd1;
 }
 
 .lesson-view-multigpu {

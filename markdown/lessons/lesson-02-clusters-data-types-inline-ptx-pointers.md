@@ -15,7 +15,7 @@ topics:
   - "State Spaces"
   - "cvta / mapa"
 code_refs:
-  - "fast.cu/examples/matmul/matmul_12.cu"
+  - "fast.cu/examples/matmul/matmul_12.cuh"
 generated_from:
   - "pages/lesson-2.html"
   - "H100-Course/slides/2. Clusters, Data types, inline PTX, State Spaces.pdf"

@@ -222,9 +222,9 @@
             <p class="section-kicker">Why This Course Exists</p>
             <h2>Hopper changed the programming model, not just the throughput number.</h2>
             <p>
-              The course is built for engineers who want the real machine: asynchronous execution, descriptor-driven
-              movement, synchronization semantics, tensor-core dataflow, and the distributed systems context required at
-              H100 scale.
+              The site focuses on how Hopper actually works: asynchronous execution, descriptor-driven movement,
+              synchronization semantics, tensor-core dataflow, and the distributed systems context required at H100
+              scale.
             </p>
           </div>
 
@@ -269,7 +269,7 @@
         <div class="section-shell">
           <div class="section-head">
             <p class="section-kicker">FAQ</p>
-            <h2>What serious learners usually want to know before they start.</h2>
+            <h2>What people usually want to know before they start.</h2>
             <p>
               Short answers about prerequisites, scope, and what this course is actually trying to teach.
             </p>
@@ -281,9 +281,9 @@
               <div>
                 <h3>Is this a beginner CUDA course?</h3>
                 <p>
-                  No. It assumes you already know C or C++, can read normal CUDA kernels, and want the Hopper
-                  execution model itself. The right entry point is still <a href="pages/lesson-1.html">lesson 1</a>,
-                  but the tone stays advanced from the start.
+                  It starts at <a href="pages/lesson-1.html">lesson 1</a>, but it assumes you are already comfortable
+                  with C or C++ and reading normal CUDA kernels. The focus here is Hopper’s execution model, not CUDA
+                  basics.
                 </p>
               </div>
             </article>
@@ -430,11 +430,11 @@
         <div class="section-shell">
           <div class="section-head section-head-dark">
             <p class="section-kicker">Explore Here</p>
-            <h2>The full course plus the Stream-K interlude now live inside the site, not beside it.</h2>
+            <h2>The full course plus the kernel addenda now live inside the site, not beside it.</h2>
             <p>
               The syllabus shows the whole climb. This section is the deliberate branch into the material itself:
-              structured lesson pages with the same visual language as the homepage, plus direct paths back to the
-              source decks when you want the original lecture flow.
+              structured lesson pages with the same visual language as the homepage, plus the Stream-K and Kernel
+              Launch supplements that keep the kernel story intact before the course moves into multi-GPU systems.
             </p>
           </div>
 
@@ -715,6 +715,38 @@
                 <a
                   class="button button-secondary"
                   href="H100-Course/slides/8.1 Stream-K.pdf"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open Slide Deck
+                </a>
+              </div>
+            </article>
+
+            <article class="explore-card explore-card-kernel-launch" data-reveal>
+              <p class="explore-index">Lesson 08.2</p>
+              <h3>Kernel Launch</h3>
+              <p class="explore-summary">
+                Stay inside the kernel boundary one more time: launch bounds, grid constants, dependent grids,
+                programmatic stream serialization, and the scheduler-versus-safety split that lets a consumer grid boot
+                before the producer has globally retired.
+              </p>
+              <ul class="explore-list">
+                <li>See why multi-kernel boundaries are often the correct decomposition for heavy epilogues and cross-tile math.</li>
+                <li>Understand how <code>griddepcontrol.launch_dependents</code> and <code>griddepcontrol.wait</code> divide early eligibility from safe consumption.</li>
+                <li>Use the overlap window deliberately instead of treating concurrency itself as the optimization goal.</li>
+              </ul>
+              <div class="explore-tags" aria-label="Lesson 8.2 topics">
+                <span>Launch Bounds</span>
+                <span>Dependent Grids</span>
+                <span>griddepcontrol</span>
+                <span>L2 Prefetch</span>
+              </div>
+              <div class="explore-actions">
+                <a class="button button-primary" href="pages/lesson-8.2.html">Open Lesson Page</a>
+                <a
+                  class="button button-secondary"
+                  href="H100-Course/slides/8.2 Kernel Launch.pdf"
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -1064,11 +1096,11 @@
 
       <section class="closing" data-reveal>
         <div class="section-shell closing-shell">
-          <p class="section-kicker section-kicker-dark">Who This Is For</p>
-          <h2>Built for people willing to read the kernel until the machine finally makes sense.</h2>
+          <p class="section-kicker section-kicker-dark">Start Here</p>
+          <h2>Move from Hopper architecture into the mechanisms that make modern kernels work.</h2>
           <p>
-            This is not beginner-flavored CUDA marketing. It is a serious course for engineers who want the execution
-            model, the descriptors, the waits, the tile scheduling, and the multi-GPU context all in one place.
+            The lessons connect the execution model, descriptors, waits, tile scheduling, tensor-core dataflow, and
+            multi-GPU orchestration in one place.
           </p>
           <div class="hero-actions">
             <a class="button button-primary" href="pages/lesson-1.html">
