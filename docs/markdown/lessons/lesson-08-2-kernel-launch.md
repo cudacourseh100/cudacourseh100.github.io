@@ -15,8 +15,8 @@ topics:
   - "GDC"
   - "L2 Prefetch"
 code_refs:
-  - "matmul_12.cu"
-  - "pingpong_experimental.cu"
+  - "matmul_12.cuh"
+  - "pingpong_experimental.cuh"
 generated_from:
   - "pages/lesson-8.2.html"
   - "H100-Course/slides/8.2 Kernel Launch.pdf"

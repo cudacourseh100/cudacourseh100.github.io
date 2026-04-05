@@ -211,6 +211,7 @@ const slideFiles = [
   "9. Multi GPU.pdf",
   "10. Multi GPU  Part 2.pdf",
 ];
+const requiredSlideFiles = slideFiles.filter((file) => file !== "0. CUDA Programming for NVIDIA H100 GPUs.pdf");
 
 const codeFiles = [
   "sm90_gemm_tma_warpspecialized_pingpong.hpp",
@@ -305,6 +306,50 @@ async function fileExists(targetPath) {
     return true;
   } catch {
     return false;
+  }
+}
+
+async function snapshotExistingSlides() {
+  const snapshot = new Map();
+
+  for (const file of slideFiles) {
+    const existingPath = path.join(outDir, "H100-Course", "slides", file);
+
+    if (await fileExists(existingPath)) {
+      snapshot.set(file, await readFile(existingPath));
+    }
+  }
+
+  return snapshot;
+}
+
+async function restoreSlideFallbacks(slideSnapshot) {
+  for (const [file, contents] of slideSnapshot.entries()) {
+    const targetPath = path.join(outDir, "H100-Course", "slides", file);
+
+    if (await fileExists(targetPath)) {
+      continue;
+    }
+
+    await ensureDir(targetPath);
+    await writeFile(targetPath, contents);
+    console.warn(`  Restored fallback slide snapshot: H100-Course/slides/${file}`);
+  }
+}
+
+async function ensureRequiredSlidesPublished() {
+  const missingSlides = [];
+
+  for (const file of requiredSlideFiles) {
+    const publishedPath = path.join(outDir, "H100-Course", "slides", file);
+
+    if (!(await fileExists(publishedPath))) {
+      missingSlides.push(`H100-Course/slides/${file}`);
+    }
+  }
+
+  if (missingSlides.length > 0) {
+    throw new Error(`Missing required slide decks in published bundle:\n${missingSlides.join("\n")}`);
   }
 }
 
@@ -658,6 +703,8 @@ async function validateHtml(relativeHtmlPath) {
 }
 
 async function build() {
+  const slideSnapshot = await snapshotExistingSlides();
+
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
 
@@ -674,6 +721,9 @@ async function build() {
   for (const file of slideFiles) {
     await copyRelative(path.join("H100-Course", "slides", file), undefined, { optional: true });
   }
+
+  await restoreSlideFallbacks(slideSnapshot);
+  await ensureRequiredSlidesPublished();
 
   for (const file of codeFiles) {
     await copyRelative(path.join("files", file), undefined, { optional: true });

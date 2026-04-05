@@ -15,7 +15,7 @@ topics:
   - "FP8"
   - "Sparse WGMMA"
 code_refs:
-  - "matmul_12.cu"
+  - "matmul_12.cuh"
   - "sm90_mma_tma_gmma_rs_warpspecialized.hpp"
 generated_from:
   - "pages/lesson-7.html"

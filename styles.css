@@ -1525,6 +1525,9 @@ body.is-nav-open .nav-toggle-icon span:nth-child(3) {
   margin: 0.45rem 0 0;
   color: var(--text-light);
   line-height: 1.6;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
 }
 
 .lesson-body {
