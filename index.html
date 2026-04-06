@@ -40,11 +40,8 @@
         </span>
       </button>
       <nav class="site-nav" id="site-nav" aria-label="Primary">
-        <a href="#why">Why Hopper</a>
-        <a href="#faq">FAQ</a>
         <a href="#lessons">Lessons</a>
-        <a href="#explore">Explore</a>
-        <a href="#pipelines">Pipelines</a>
+        <a href="#explore">Deep Dives</a>
         <a href="#visuals">Visuals</a>
         <a href="#code">Code</a>
         <a href="slides.html">Slides</a>
@@ -195,6 +192,12 @@
               Browse all slides
             </a>
           </div>
+          <div class="hero-proof" aria-label="Course proof points">
+            <span>10 lessons</span>
+            <span>CUTLASS SM90 kernels</span>
+            <span>PTX-level primitives</span>
+            <span>Multi-GPU orchestration</span>
+          </div>
         </div>
       </section>
 
@@ -240,81 +243,6 @@
                 <p>
                   NVLink, Stream-K scheduling, NCCL setup, PMIx, and Slurm show up because real training systems do not
                   stop at one GPU, and neither should the mental model.
-                </p>
-              </div>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="statement" id="faq" data-reveal>
-        <div class="section-shell">
-          <div class="section-head">
-            <p class="section-kicker">FAQ</p>
-            <h2>What people usually want to know before they start.</h2>
-            <p>
-              Short answers about prerequisites, scope, and what this course is actually trying to teach.
-            </p>
-          </div>
-
-          <div class="principles">
-            <article class="principle" data-reveal>
-              <p class="principle-index">Q1</p>
-              <div>
-                <h3>Is this a beginner CUDA course?</h3>
-                <p>
-                  It starts at <a href="pages/lesson-1.html">lesson 1</a>, but it assumes you are already comfortable
-                  with C or C++ and reading normal CUDA kernels. The focus here is Hopper’s execution model, not CUDA
-                  basics.
-                </p>
-              </div>
-            </article>
-
-            <article class="principle" data-reveal>
-              <p class="principle-index">Q2</p>
-              <div>
-                <h3>What does the course actually teach?</h3>
-                <p>
-                  It teaches Hopper mechanisms directly: asynchronous execution, <code>mbarrier</code>, clusters,
-                  distributed shared memory, <code>CUtensorMap</code>, <code>cp.async.bulk</code>, WGMMA,
-                  warp-specialized kernel design, and the multi-GPU stack that shows up in real training systems.
-                </p>
-              </div>
-            </article>
-
-            <article class="principle" data-reveal>
-              <p class="principle-index">Q3</p>
-              <div>
-                <h3>Does it cover TMA and WGMMA in detail?</h3>
-                <p>
-                  Yes. <a href="pages/lesson-4.html">Lesson 4</a> and <a href="pages/lesson-5.html">lesson 5</a>
-                  cover cuTensorMap, TMA, and <code>cp.async.bulk</code>. <a href="pages/lesson-6.html">Lesson 6</a>
-                  and <a href="pages/lesson-7.html">lesson 7</a> cover WGMMA issue, wait logic, descriptors,
-                  <code>stmatrix</code>, FP8, and sparse behavior.
-                </p>
-              </div>
-            </article>
-
-            <article class="principle" data-reveal>
-              <p class="principle-index">Q4</p>
-              <div>
-                <h3>Does the course include multi-GPU topics?</h3>
-                <p>
-                  Yes. <a href="pages/lesson-9.html">Lesson 9</a> and <a href="pages/lesson-10.html">lesson 10</a>
-                  cover NVLink, NVSwitch, topology, Slurm, PMIx, NCCL communicators, collectives, and distributed
-                  training patterns.
-                </p>
-              </div>
-            </article>
-
-            <article class="principle" data-reveal>
-              <p class="principle-index">Q5</p>
-              <div>
-                <h3>Why is H100 different from older CUDA mental models?</h3>
-                <p>
-                  Because Hopper is built around overlap-first execution. Request and completion are no longer one
-                  mental event, and the course keeps returning to that point through barriers, descriptor-backed
-                  movement, shared-memory staging, and warpgroup tensor-core issue.
                 </p>
               </div>
             </article>
@@ -411,12 +339,12 @@
       <section class="lesson-explore" id="explore" data-reveal>
         <div class="section-shell">
           <div class="section-head section-head-dark">
-            <p class="section-kicker">Explore Here</p>
-            <h2>The full course plus the kernel addenda now live inside the site, not beside it.</h2>
+            <p class="section-kicker">Deep Dives</p>
+            <h2>Four deliberate entries into the course.</h2>
             <p>
-              The syllabus shows the whole climb. This section is the deliberate branch into the material itself:
-              structured lesson pages with the same visual language as the homepage, plus the Stream-K and Kernel
-              Launch supplements that keep the kernel story intact before the course moves into multi-GPU systems.
+              The syllabus above shows the full climb. This section stays tighter: four high-signal entries that cover
+              the machine model, synchronization, kernel design, and distributed orchestration without turning the
+              homepage into another full lesson index.
             </p>
           </div>
 
@@ -444,37 +372,6 @@
                 <a
                   class="button button-secondary"
                   href="H100-Course/slides/1. Introduction to H100.pdf"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open Slide Deck
-                </a>
-              </div>
-            </article>
-
-            <article class="explore-card explore-card-clusters" data-reveal>
-              <p class="explore-index">Lesson 02</p>
-              <h3>Clusters, Data Types, Inline PTX, Pointers</h3>
-              <p class="explore-summary">
-                Move from architecture into mechanism: cluster residency, distributed shared memory, PTX state spaces,
-                inline PTX constraints, and the pointer conversions Hopper code depends on.
-              </p>
-              <ul class="explore-list">
-                <li>Understand what thread block clusters change and what still stays local to one SM.</li>
-                <li>Read PTX operands, clobbers, state spaces, and packed types without flattening the details.</li>
-                <li>Connect <code>cvta</code>, <code>mapa</code>, DSMEM, and shared-memory banking into one coherent model.</li>
-              </ul>
-              <div class="explore-tags" aria-label="Lesson 2 topics">
-                <span>Clusters</span>
-                <span>DSMEM</span>
-                <span>Inline PTX</span>
-                <span>Address Spaces</span>
-              </div>
-              <div class="explore-actions">
-                <a class="button button-primary" href="pages/lesson-2.html">Open Lesson Page</a>
-                <a
-                  class="button button-secondary"
-                  href="H100-Course/slides/2. Clusters, Data types, inline PTX, State Spaces.pdf"
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -514,133 +411,6 @@
               </div>
             </article>
 
-            <article class="explore-card explore-card-tma" data-reveal>
-              <p class="explore-index">Lesson 04</p>
-              <h3>cuTensorMap</h3>
-              <p class="explore-summary">
-                Step into descriptor-driven movement: how Hopper TMA uses a host-encoded metadata object to move tensor
-                tiles, decode layouts, swizzle shared memory, and control fetch behavior ahead of compute.
-              </p>
-              <ul class="explore-list">
-                <li>Understand what a <code>CUtensorMap</code> descriptor contains and why that changes async copy design.</li>
-                <li>Keep dimensions, strides, element strides, and box dimensions precise instead of blending bytes and elements.</li>
-                <li>See how swizzle, interleave, L2 promotion, and OOB fill shape real TMA-backed pipelines.</li>
-              </ul>
-              <div class="explore-tags" aria-label="Lesson 4 topics">
-                <span>CUtensorMap</span>
-                <span>TMA</span>
-                <span>Swizzle</span>
-                <span>L2 Promotion</span>
-              </div>
-              <div class="explore-actions">
-                <a class="button button-primary" href="pages/lesson-4.html">Open Lesson Page</a>
-                <a
-                  class="button button-secondary"
-                  href="H100-Course/slides/4. cuTensorMap.pdf"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open Slide Deck
-                </a>
-              </div>
-            </article>
-
-            <article class="explore-card explore-card-copybulk" data-reveal>
-              <p class="explore-index">Lesson 05</p>
-              <h3><code>cp.async.bulk</code></h3>
-              <p class="explore-summary">
-                Step from descriptors into the instruction family that uses them: structured and unstructured bulk
-                copies, completion mechanisms, cache policy, multicast, prefetch, and the TMA-backed movement path that
-                keeps Hopper pipelines fed.
-              </p>
-              <ul class="explore-list">
-                <li>Understand how Hopper bulk copies differ from Ampere <code>cp.async</code> at the execution-model level.</li>
-                <li>See when to use raw linear copies versus <code>cp.async.bulk.tensor</code> descriptor-driven movement.</li>
-                <li>Connect <code>mbarrier</code>, <code>bulk_group</code>, cache hints, multicast, and TMA stores into one flow.</li>
-              </ul>
-              <div class="explore-tags" aria-label="Lesson 5 topics">
-                <span>cp.async.bulk</span>
-                <span>TMA</span>
-                <span>Multicast</span>
-                <span>Prefetch</span>
-              </div>
-              <div class="explore-actions">
-                <a class="button button-primary" href="pages/lesson-5.html">Open Lesson Page</a>
-                <a
-                  class="button button-secondary"
-                  href="H100-Course/slides/5. cp.async.bulk.pdf"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open Slide Deck
-                </a>
-              </div>
-            </article>
-
-            <article class="explore-card explore-card-wgmma" data-reveal>
-              <p class="explore-index">Lesson 06</p>
-              <h3>WGMMA Part 1</h3>
-              <p class="explore-summary">
-                Move into Hopper tensor-core issue proper: warpgroup execution, asynchronous math launch,
-                <code>ldmatrix</code>, shared-memory descriptors, fixed tile geometry, and how the hardware expects
-                operands to arrive.
-              </p>
-              <ul class="explore-list">
-                <li>See why Hopper shifts the unit of tensor-core execution from warp to warpgroup.</li>
-                <li>Understand when A lives in registers versus shared memory and why B stays descriptor-backed in shared memory.</li>
-                <li>Read <code>wgmma.fence</code>, <code>wgmma.mma_async</code>, <code>commit_group</code>, and descriptor fields as one pipeline.</li>
-              </ul>
-              <div class="explore-tags" aria-label="Lesson 6 topics">
-                <span>WGMMA</span>
-                <span>Warpgroup</span>
-                <span>ldmatrix</span>
-                <span>Descriptors</span>
-              </div>
-              <div class="explore-actions">
-                <a class="button button-primary" href="pages/lesson-6.html">Open Lesson Page</a>
-                <a
-                  class="button button-secondary"
-                  href="H100-Course/slides/6. WGMMA-1.pdf"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open Slide Deck
-                </a>
-              </div>
-            </article>
-
-            <article class="explore-card explore-card-wgmma-2" data-reveal>
-              <p class="explore-index">Lesson 07</p>
-              <h3>WGMMA Part 2</h3>
-              <p class="explore-summary">
-                Stay inside the warpgroup lifecycle: commit and wait groups, <code>wgmma.fence</code>,
-                <code>stmatrix</code>, FP8 scaling and packing, and sparse metadata rules that matter once the
-                tensor-core work is already in flight.
-              </p>
-              <ul class="explore-list">
-                <li>Understand why grouping WGMMA launches reduces tracking overhead and preserves useful overlap.</li>
-                <li>See how <code>stmatrix</code> turns opaque accumulator fragments into shared-memory tiles and why FP32 outputs must be packed first.</li>
-                <li>Keep FP8 K-major constraints, saturation policy, and sparse metadata rules precise instead of treating them as “just lower precision.”</li>
-              </ul>
-              <div class="explore-tags" aria-label="Lesson 7 topics">
-                <span>commit_group</span>
-                <span>stmatrix</span>
-                <span>FP8</span>
-                <span>Sparse WGMMA</span>
-              </div>
-              <div class="explore-actions">
-                <a class="button button-primary" href="pages/lesson-7.html">Open Lesson Page</a>
-                <a
-                  class="button button-secondary"
-                  href="H100-Course/slides/7. Wgmma part 2.pdf"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open Slide Deck
-                </a>
-              </div>
-            </article>
-
             <article class="explore-card explore-card-kernel-design" data-reveal>
               <p class="explore-index">Lesson 08</p>
               <h3>Kernel Design</h3>
@@ -665,102 +435,6 @@
                 <a
                   class="button button-secondary"
                   href="H100-Course/slides/8. Kernel Design.pdf"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open Slide Deck
-                </a>
-              </div>
-            </article>
-
-            <article class="explore-card explore-card-streamk" data-reveal>
-              <p class="explore-index">Lesson 08.1</p>
-              <h3>Stream-K</h3>
-              <p class="explore-summary">
-                Step into the tail-fixup scheduler directly: split output tiles across K, track partial ownership with
-                work units and locks, and recover L2 locality with grouping once a plain tile-parallel decomposition
-                starts leaving SMs idle.
-              </p>
-              <ul class="explore-list">
-                <li>See why Stream-K changes the unit of work from “one output tile” to “a budget of math iterations.”</li>
-                <li>Understand first, middle, and final split roles, plus the workspace and lock protocol behind fixup.</li>
-                <li>Map the scheduling addendum back to the repo’s persistent, grouped, and Stream-K scheduler headers.</li>
-              </ul>
-              <div class="explore-tags" aria-label="Lesson 8.1 topics">
-                <span>Stream-K</span>
-                <span>Fixup</span>
-                <span>Persistent</span>
-                <span>Groups</span>
-              </div>
-              <div class="explore-actions">
-                <a class="button button-primary" href="pages/lesson-8.1.html">Open Lesson Page</a>
-                <a
-                  class="button button-secondary"
-                  href="H100-Course/slides/8.1 Stream-K.pdf"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open Slide Deck
-                </a>
-              </div>
-            </article>
-
-            <article class="explore-card explore-card-kernel-launch" data-reveal>
-              <p class="explore-index">Lesson 08.2</p>
-              <h3>Kernel Launch</h3>
-              <p class="explore-summary">
-                Stay inside the kernel boundary one more time: launch bounds, grid constants, dependent grids,
-                programmatic stream serialization, and the scheduler-versus-safety split that lets a consumer grid boot
-                before the producer has globally retired.
-              </p>
-              <ul class="explore-list">
-                <li>See why multi-kernel boundaries are often the correct decomposition for heavy epilogues and cross-tile math.</li>
-                <li>Understand how <code>griddepcontrol.launch_dependents</code> and <code>griddepcontrol.wait</code> divide early eligibility from safe consumption.</li>
-                <li>Use the overlap window deliberately instead of treating concurrency itself as the optimization goal.</li>
-              </ul>
-              <div class="explore-tags" aria-label="Lesson 8.2 topics">
-                <span>Launch Bounds</span>
-                <span>Dependent Grids</span>
-                <span>griddepcontrol</span>
-                <span>L2 Prefetch</span>
-              </div>
-              <div class="explore-actions">
-                <a class="button button-primary" href="pages/lesson-8.2.html">Open Lesson Page</a>
-                <a
-                  class="button button-secondary"
-                  href="H100-Course/slides/8.2 Kernel Launch.pdf"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open Slide Deck
-                </a>
-              </div>
-            </article>
-
-            <article class="explore-card explore-card-multigpu" data-reveal>
-              <p class="explore-index">Lesson 09</p>
-              <h3>Multi GPU Part 1</h3>
-              <p class="explore-summary">
-                Leave the single-GPU kernel and move into the system: DGX H100 node anatomy, NVLink, NVSwitch,
-                ConnectX, rails, InfiniBand topology, peer access, and why raw point-to-point copies are not enough at
-                scale.
-              </p>
-              <ul class="explore-list">
-                <li>Understand where the bandwidth cliff appears when traffic leaves the node and why network design suddenly matters.</li>
-                <li>Read DGX H100 hardware as a coordinated fabric rather than eight isolated accelerators on one motherboard.</li>
-                <li>Connect CUDA P2P and UVA to the larger communication stack that the next lesson formalizes with NCCL, PMIx, and Slurm.</li>
-              </ul>
-              <div class="explore-tags" aria-label="Lesson 9 topics">
-                <span>NVLink</span>
-                <span>NVSwitch</span>
-                <span>ConnectX</span>
-                <span>UVA</span>
-              </div>
-              <div class="explore-actions">
-                <a class="button button-primary" href="pages/lesson-9.html">Open Lesson Page</a>
-                <a
-                  class="button button-secondary"
-                  href="H100-Course/slides/9. Multi GPU.pdf"
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -848,7 +522,7 @@
         <div class="section-shell">
           <div class="section-head">
             <p class="section-kicker">Code Anchors</p>
-            <h2>The material stays pinned to real kernel files, not abstract slogans.</h2>
+            <h2>The course stays close to the kernel source.</h2>
             <p>
               These references are already in the repo. They are where the course connects architecture diagrams to
               scheduler logic, shared-memory layout, descriptor construction, and measured kernels.
@@ -871,8 +545,8 @@
                 sm90_tile_scheduler_stream_k.hpp
               </a>
               <p>
-                Persistent Stream-K decomposition, work-tile bookkeeping, reduction units, and the scheduler decisions
-                that decide how work moves across the machine.
+                Persistent Stream-K decomposition, work-tile bookkeeping, reduction units, and the scheduler rules
+                that determine how work moves across the machine.
               </p>
             </article>
 
@@ -901,14 +575,14 @@
 
       <section class="visual-labs" id="visuals" data-reveal>
         <div class="section-shell">
-          <div class="section-head section-head-dark">
-            <p class="section-kicker">Interactive Visualizations</p>
-            <h2>Small live glances into the teaching tools behind the course.</h2>
-            <p>
-              These companion visualizations are already live on GitHub Pages. Each preview below is a direct window
-              into the actual interactive, with a full-view link when you want to step into it properly.
-            </p>
-          </div>
+        <div class="section-head section-head-dark">
+          <p class="section-kicker">Interactive Visualizations</p>
+          <h2>Small live glances into the teaching tools behind the course.</h2>
+          <p>
+            These companion visualizations are already live on GitHub Pages. The homepage keeps them lighter now:
+            each preview loads on demand inline, with a full-view link whenever you want the standalone interactive.
+          </p>
+        </div>
 
           <div class="lab-list">
             <article class="lab-item" data-reveal>
@@ -925,16 +599,10 @@
               </div>
               <div class="lab-preview-shell">
                 <div class="lab-preview-meta">
-                  <span>Live Preview</span>
+                  <span>Snapshot</span>
                   <span>Tile Scheduling Studio</span>
                 </div>
-                <iframe
-                  class="lab-preview"
-                  title="Rasterization and swizzle visualizer preview"
-                  src="https://cudacourseh100.github.io/raster/"
-                  loading="lazy"
-                  referrerpolicy="strict-origin-when-cross-origin"
-                ></iframe>
+                <img class="lab-preview-image" src="preview-snaps/raster.png" alt="Rasterization and swizzle visualizer preview" loading="lazy">
               </div>
             </article>
 
@@ -952,16 +620,10 @@
               </div>
               <div class="lab-preview-shell">
                 <div class="lab-preview-meta">
-                  <span>Live Preview</span>
+                  <span>Snapshot</span>
                   <span>Architecture View</span>
                 </div>
-                <iframe
-                  class="lab-preview"
-                  title="H100 GPU architecture visualizer preview"
-                  src="https://cudacourseh100.github.io/h100visu/"
-                  loading="lazy"
-                  referrerpolicy="strict-origin-when-cross-origin"
-                ></iframe>
+                <img class="lab-preview-image" src="preview-snaps/h100visu.png" alt="H100 GPU architecture visualizer preview" loading="lazy">
               </div>
             </article>
 
@@ -979,16 +641,10 @@
               </div>
               <div class="lab-preview-shell">
                 <div class="lab-preview-meta">
-                  <span>Live Preview</span>
+                  <span>Snapshot</span>
                   <span>Node Topology</span>
                 </div>
-                <iframe
-                  class="lab-preview"
-                  title="DGX H100 node architecture visualizer preview"
-                  src="https://cudacourseh100.github.io/dgxvisu/"
-                  loading="lazy"
-                  referrerpolicy="strict-origin-when-cross-origin"
-                ></iframe>
+                <img class="lab-preview-image" src="preview-snaps/dgxvisu.png" alt="DGX H100 node architecture visualizer preview" loading="lazy">
               </div>
             </article>
 
@@ -1006,16 +662,10 @@
               </div>
               <div class="lab-preview-shell">
                 <div class="lab-preview-meta">
-                  <span>Live Preview</span>
+                  <span>Snapshot</span>
                   <span>Lifecycle Walkthrough</span>
                 </div>
-                <iframe
-                  class="lab-preview"
-                  title="WGMMA lifecycle visualizer preview"
-                  src="https://cudacourseh100.github.io/wgmmavisu/"
-                  loading="lazy"
-                  referrerpolicy="strict-origin-when-cross-origin"
-                ></iframe>
+                <img class="lab-preview-image" src="preview-snaps/wgmmavisu.png" alt="WGMMA lifecycle visualizer preview" loading="lazy">
               </div>
             </article>
 
@@ -1033,16 +683,10 @@
               </div>
               <div class="lab-preview-shell">
                 <div class="lab-preview-meta">
-                  <span>Live Preview</span>
+                  <span>Snapshot</span>
                   <span>Async Pipeline</span>
                 </div>
-                <iframe
-                  class="lab-preview"
-                  title="TMA and WGMMA async pipeline visualizer preview"
-                  src="https://cudacourseh100.github.io/simplebarrier/"
-                  loading="lazy"
-                  referrerpolicy="strict-origin-when-cross-origin"
-                ></iframe>
+                <img class="lab-preview-image" src="preview-snaps/simplebarrier.png" alt="TMA and WGMMA async pipeline visualizer preview" loading="lazy">
               </div>
             </article>
 
@@ -1060,16 +704,132 @@
               </div>
               <div class="lab-preview-shell">
                 <div class="lab-preview-meta">
-                  <span>Live Preview</span>
+                  <span>Snapshot</span>
                   <span>Cluster Topology</span>
                 </div>
-                <iframe
-                  class="lab-preview"
-                  title="Thread block cluster visualizer preview"
-                  src="https://cudacourseh100.github.io/cluster/"
-                  loading="lazy"
-                  referrerpolicy="strict-origin-when-cross-origin"
-                ></iframe>
+                <img class="lab-preview-image" src="preview-snaps/cluster.png" alt="Thread block cluster visualizer preview" loading="lazy">
+              </div>
+            </article>
+
+            <article class="lab-item" data-reveal>
+              <div class="lab-copy">
+                <p class="lab-index">07</p>
+                <h3>SM90 Tile Scheduler Visualizer</h3>
+                <p>
+                  A live walkthrough of CUTLASS SM90 tile scheduling: swizzle groups, cluster-major and cluster-minor
+                  offsets, raster order, and the <code>get_work_idx_m_and_n</code> mapping from linear CTA work to
+                  output tiles.
+                </p>
+                <a class="button button-secondary" href="https://cudacourseh100.github.io/tile-scheduler-viz/" target="_blank" rel="noreferrer">
+                  Open Tile Scheduler Visualizer
+                </a>
+              </div>
+              <div class="lab-preview-shell">
+                <div class="lab-preview-meta">
+                  <span>Snapshot</span>
+                  <span>Scheduler Mapping</span>
+                </div>
+                <img class="lab-preview-image" src="preview-snaps/tile-scheduler-viz.png" alt="SM90 tile scheduler visualizer preview" loading="lazy">
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="statement faq-section" id="faq" data-reveal>
+        <div class="section-shell">
+          <div class="section-head">
+            <p class="section-kicker">FAQ</p>
+            <h2>What people usually want to know before they start.</h2>
+            <p>
+              Short answers about prerequisites, scope, and what this course is actually trying to teach.
+            </p>
+          </div>
+
+          <div class="faq-list">
+            <article class="faq-item" data-faq-item data-reveal>
+              <h3 class="faq-heading">
+                <button class="faq-trigger" type="button" id="faq-trigger-1" aria-expanded="true" aria-controls="faq-panel-1">
+                  <span class="faq-index">Q1</span>
+                  <span class="faq-question">Is this a beginner CUDA course?</span>
+                  <span class="faq-icon" aria-hidden="true"></span>
+                </button>
+              </h3>
+              <div class="faq-panel" id="faq-panel-1" role="region" aria-labelledby="faq-trigger-1">
+                <p>
+                  It starts at <a href="pages/lesson-1.html">lesson 1</a>, but it assumes you are already comfortable
+                  with C or C++ and reading normal CUDA kernels. The focus here is Hopper’s execution model, not CUDA
+                  basics.
+                </p>
+              </div>
+            </article>
+
+            <article class="faq-item" data-faq-item data-reveal>
+              <h3 class="faq-heading">
+                <button class="faq-trigger" type="button" id="faq-trigger-2" aria-expanded="false" aria-controls="faq-panel-2">
+                  <span class="faq-index">Q2</span>
+                  <span class="faq-question">What does the course actually teach?</span>
+                  <span class="faq-icon" aria-hidden="true"></span>
+                </button>
+              </h3>
+              <div class="faq-panel" id="faq-panel-2" role="region" aria-labelledby="faq-trigger-2" hidden>
+                <p>
+                  It teaches Hopper mechanisms directly: asynchronous execution, <code>mbarrier</code>, clusters,
+                  distributed shared memory, <code>CUtensorMap</code>, <code>cp.async.bulk</code>, WGMMA,
+                  warp-specialized kernel design, and the multi-GPU stack that shows up in real training systems.
+                </p>
+              </div>
+            </article>
+
+            <article class="faq-item" data-faq-item data-reveal>
+              <h3 class="faq-heading">
+                <button class="faq-trigger" type="button" id="faq-trigger-3" aria-expanded="false" aria-controls="faq-panel-3">
+                  <span class="faq-index">Q3</span>
+                  <span class="faq-question">Does it cover TMA and WGMMA in detail?</span>
+                  <span class="faq-icon" aria-hidden="true"></span>
+                </button>
+              </h3>
+              <div class="faq-panel" id="faq-panel-3" role="region" aria-labelledby="faq-trigger-3" hidden>
+                <p>
+                  Yes. <a href="pages/lesson-4.html">Lesson 4</a> and <a href="pages/lesson-5.html">lesson 5</a>
+                  cover cuTensorMap, TMA, and <code>cp.async.bulk</code>. <a href="pages/lesson-6.html">Lesson 6</a>
+                  and <a href="pages/lesson-7.html">lesson 7</a> cover WGMMA issue, wait logic, descriptors,
+                  <code>stmatrix</code>, FP8, and sparse behavior.
+                </p>
+              </div>
+            </article>
+
+            <article class="faq-item" data-faq-item data-reveal>
+              <h3 class="faq-heading">
+                <button class="faq-trigger" type="button" id="faq-trigger-4" aria-expanded="false" aria-controls="faq-panel-4">
+                  <span class="faq-index">Q4</span>
+                  <span class="faq-question">Does the course include multi-GPU topics?</span>
+                  <span class="faq-icon" aria-hidden="true"></span>
+                </button>
+              </h3>
+              <div class="faq-panel" id="faq-panel-4" role="region" aria-labelledby="faq-trigger-4" hidden>
+                <p>
+                  Yes. <a href="pages/lesson-9.html">Lesson 9</a> and <a href="pages/lesson-10.html">lesson 10</a>
+                  cover NVLink, NVSwitch, topology, Slurm, PMIx, NCCL communicators, collectives, and distributed
+                  training patterns.
+                </p>
+              </div>
+            </article>
+
+            <article class="faq-item" data-faq-item data-reveal>
+              <h3 class="faq-heading">
+                <button class="faq-trigger" type="button" id="faq-trigger-5" aria-expanded="false" aria-controls="faq-panel-5">
+                  <span class="faq-index">Q5</span>
+                  <span class="faq-question">Why is H100 different from older CUDA mental models?</span>
+                  <span class="faq-icon" aria-hidden="true"></span>
+                </button>
+              </h3>
+              <div class="faq-panel" id="faq-panel-5" role="region" aria-labelledby="faq-trigger-5" hidden>
+                <p>
+                  Because Hopper is built around overlap-first execution. Request and completion are no longer one
+                  mental event, and the course keeps returning to that point through barriers, descriptor-backed
+                  movement, shared-memory staging, and warpgroup tensor-core issue.
+                </p>
               </div>
             </article>
           </div>
@@ -1088,7 +848,7 @@
             <a class="button button-primary" href="pages/lesson-1.html">
               Start with lesson 1
             </a>
-            <a class="button button-secondary button-secondary-dark" href="slides.html">
+            <a class="button button-secondary" href="slides.html">
               Browse all slides
             </a>
           </div>
@@ -1101,7 +861,7 @@
         <a href="#top">Home</a>
         <a href="#lessons">Lessons</a>
         <a href="#faq">FAQ</a>
-        <a href="#explore">Explore</a>
+        <a href="#explore">Deep Dives</a>
         <a href="#pipelines">Pipelines</a>
         <a href="#visuals">Visuals</a>
         <a href="#code">Code</a>

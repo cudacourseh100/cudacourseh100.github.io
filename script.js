@@ -460,6 +460,49 @@ function initPipelineShowcase() {
   renderConcept(0);
 }
 
+function initFaqAccordions() {
+  const items = [...document.querySelectorAll("[data-faq-item]")];
+
+  if (items.length === 0) {
+    return;
+  }
+
+  function setOpen(item, shouldOpen) {
+    const trigger = item.querySelector(".faq-trigger");
+    const panel = item.querySelector(".faq-panel");
+
+    if (!trigger || !panel) {
+      return;
+    }
+
+    item.classList.toggle("is-open", shouldOpen);
+    trigger.setAttribute("aria-expanded", String(shouldOpen));
+    panel.hidden = !shouldOpen;
+  }
+
+  items.forEach((item, index) => {
+    setOpen(item, index === 0);
+
+    const trigger = item.querySelector(".faq-trigger");
+
+    if (!trigger) {
+      return;
+    }
+
+    trigger.addEventListener("click", () => {
+      const shouldOpen = trigger.getAttribute("aria-expanded") !== "true";
+
+      items.forEach((otherItem) => {
+        setOpen(otherItem, false);
+      });
+
+      if (shouldOpen) {
+        setOpen(item, true);
+      }
+    });
+  });
+}
+
 function initSidebarScrollSpy() {
   const sideNav = document.querySelector(".lesson-side-nav");
 
@@ -564,4 +607,5 @@ function initSidebarScrollSpy() {
 initMobileNav();
 initRevealAnimations();
 initPipelineShowcase();
+initFaqAccordions();
 initSidebarScrollSpy();

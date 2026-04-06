@@ -286,9 +286,9 @@ Use when a thread's arrival also means "this phase must not complete until `txCo
 mbarrier.expect_tx{.sem.scope}{.space}.b64 [addr], txCount;
 ```
 
-Performs **only** the expect-tx part: increases the current phase's `tx-count` by `txCount`. Does **not** touch pending arrivals and does not itself wait. Supports `.shared::cta` and `.shared::cluster`, uses generic addressing if no state space is given, and is available only with `.relaxed` semantics. Introduced in PTX 8.0, requires `sm_90+`.
+Only increases the current phase's `tx-count` by `txCount`. Does not touch pending arrivals or wait. Supports `.shared::cta` and `.shared::cluster`, uses generic addressing if no state space is given, only `.relaxed` semantics. PTX 8.0+, `sm_90+`.
 
-`expect_tx` is purely "increase async debt." It is useful when the async work and the thread's arrival are logically separate, or when some other instruction will later retire the debt by generating `complete_tx`.
+Purely "increase async debt." Useful when async work and thread arrival are logically separate, or when another instruction will later retire the debt via `complete_tx`.
 
 ### `mbarrier.complete_tx`
 
@@ -296,32 +296,32 @@ Performs **only** the expect-tx part: increases the current phase's `tx-count` b
 mbarrier.complete_tx{.sem.scope}{.space}.b64 [addr], txCount;
 ```
 
-The opposite accounting step: decrements `tx-count` by `txCount`, then checks whether the phase can complete. PTX is very explicit that the instruction itself does **not** perform an asynchronous memory operation; it merely simulates the completion of one and applies the corresponding barrier side effect. Like `expect_tx`, it supports `.shared::cta` and `.shared::cluster`, only exposes `.relaxed`, and requires `sm_90+`.
+Opposite accounting step: decrements `tx-count` by `txCount`, then checks if the phase can complete. The instruction itself does **not** perform an async memory operation — it merely simulates completion and applies the barrier side effect. Like `expect_tx`: supports `.shared::cta` and `.shared::cluster`, only `.relaxed`, requires `sm_90+`.
 
-If pending arrivals were already zero, this may be the instruction that flips the barrier into the next phase. If arrivals are still pending, it just reduces the outstanding transaction debt and the barrier remains incomplete.
+If pending arrivals are zero, this flips the barrier to the next phase. If arrivals are still pending, it just reduces transaction debt and the barrier stays incomplete.
 
-**Subtle but important:** the explicit `mbarrier.complete_tx` instruction is only `.relaxed`. But several async PTX instructions generate an **implicit** `complete-tx` when the async operation finishes. For example, `cp.async.bulk...mbarrier::complete_tx::bytes` performs a `complete-tx` whose `completeCount` equals the number of bytes copied, and PTX says that implicit `complete-tx` has `.release` semantics at `.cluster` scope. The same pattern appears for `cp.async.bulk.tensor`, `st.async.shared::cluster.mbarrier::complete_tx::bytes`, and `cp.reduce.async.bulk`.
+**Important:** explicit `mbarrier.complete_tx` is only `.relaxed`. Several async instructions generate **implicit** `complete-tx` when the async operation finishes. `cp.async.bulk...mbarrier::complete_tx::bytes` performs a `complete-tx` with `completeCount` equal to bytes copied; that implicit `complete-tx` has `.release` semantics at `.cluster` scope. Same for `cp.async.bulk.tensor`, `st.async.shared::cluster.mbarrier::complete_tx::bytes`, and `cp.reduce.async.bulk`.
 
 ### How they fit together in one phase
 
-A typical phase using these instructions works like this:
+A typical phase:
 
-1. **`mbarrier.init [bar], N`** — sets the barrier to expect `N` arrivals and zero async debt.
-2. **Threads arrive** — either via `mbarrier.arrive` or `mbarrier.arrive.expect_tx`, depending on whether they also need the phase to track async work. `expect_tx` may also be done separately.
-3. **Async operations retire debt** — either explicitly via `mbarrier.complete_tx` or implicitly through instructions like `cp.async.bulk...mbarrier::complete_tx::bytes`.
-4. **Phase completes** — only when arrival debt and transaction debt are both zero. At that moment the phase advances atomically. Waiters observe this with `mbarrier.test_wait` / `mbarrier.try_wait`; with `.acquire`, those waits form the acquire side of synchronization. PTX also requires that for each phase, at least one wait must successfully observe completion before any arrival in the subsequent phase.
+1. **`mbarrier.init [bar], N`** — expects `N` arrivals and zero async debt.
+2. **Threads arrive** — via `mbarrier.arrive` or `mbarrier.arrive.expect_tx`. Use `arrive` if no async tracking, `arrive.expect_tx` if the phase also tracks async work. Or call `expect_tx` separately.
+3. **Async operations retire debt** — explicitly via `mbarrier.complete_tx` or implicitly via `cp.async.bulk...mbarrier::complete_tx::bytes` and similar.
+4. **Phase completes** — when both arrival debt and transaction debt reach zero. Phase advances atomically. Waiters observe this with `mbarrier.test_wait` / `mbarrier.try_wait`; with `.acquire`, those waits are the acquire side of synchronization. PTX requires at least one wait must observe completion before any arrival in the next phase.
 
-### The shortest intuition for each opcode
+### Quick reference
 
-| Instruction | One-liner |
-|-------------|-----------|
-| `mbarrier.init` | Start a fresh reusable barrier phase machine with `count` expected arrivals. |
-| `mbarrier.arrive` | I am done with this phase; subtract from pending arrivals. |
-| `mbarrier.arrive.expect_tx` | I am done with this phase, and this phase must also wait for `txCount` async transaction units. |
-| `mbarrier.expect_tx` | Add `txCount` async debt to this phase. |
-| `mbarrier.complete_tx` | Retire `txCount` of that async debt. |
+| Instruction | Purpose |
+|-------------|---------|
+| `mbarrier.init` | Start a reusable barrier phase with `count` expected arrivals. |
+| `mbarrier.arrive` | Signal arrival; subtract from pending arrivals. |
+| `mbarrier.arrive.expect_tx` | Signal arrival and add `txCount` async debt. |
+| `mbarrier.expect_tx` | Add `txCount` async debt. |
+| `mbarrier.complete_tx` | Retire `txCount` async debt. |
 
-**Biggest practical pitfall:** `arrive` does not mean completion once `tx-count` is involved. If you used `expect_tx` anywhere in the phase, then the barrier will not complete until matching `complete_tx` activity has driven `tx-count` back to zero.
+**Watch out:** `arrive` does not mean completion if `tx-count` is nonzero. If you called `expect_tx` anywhere in the phase, the barrier won't complete until `complete_tx` drives `tx-count` back to zero.
 
 ---
 
@@ -493,7 +493,7 @@ This is a very narrow acquire/release bridge for specific shared-memory communic
 
 *Reference: PTX ISA 9.2, `bar` / `barrier` instruction pages.*
 
-In PTX, **"named barriers"** refers to the CTA barrier resources used by `bar` / `barrier` instructions, where each CTA has **16 logical barriers numbered `0..15`**. PTX says each CTA instance has sixteen barriers, and operand `a` selects one of them.
+CTA barrier resources used by `bar` / `barrier` instructions. Each CTA has **16 logical barriers numbered `0..15`**. Operand `a` selects one of them.
 
 ### Full instruction forms
 
@@ -515,21 +515,21 @@ bar{.cta}.red.op.pred                 p, a{, b}, {!}c;
 
 ### What the operands mean
 
-`a`, `b`, and `d` are `.u32`; `p` and `c` are predicates.
+Operands: `a`, `b`, `d` are `.u32`; `p`, `c` are predicates.
 
 | Operand | Meaning |
 |---------|---------|
-| `a` | Barrier number, `0..15` (immediate or register) |
-| `b` | Participating thread count, must be a **multiple of warp size**. If omitted, all threads in the CTA participate. |
-| `d` | Reduction destination register for `popc` |
-| `p` | Predicate destination register for `.and` / `.or` |
-| `c` | Per-thread predicate input, optionally negated as `{!}c` |
+| `a` | Barrier ID, `0..15` (immediate or register) |
+| `b` | Thread count (multiple of warp size). Omit for all CTA threads. |
+| `d` | Reduction destination (for `popc`) |
+| `p` | Predicate destination (for `.and` / `.or`) |
+| `c` | Per-thread input predicate, optionally negated `{!}c` |
 
 ### What each instruction does
 
 #### `barrier.cta.sync a{, b}` / `bar.sync a{, b}`
 
-The standard named barrier wait. The thread signals arrival at barrier `a` and waits until all participating warps have arrived. PTX says `barrier{.cta}.sync` waits for all non-exited threads from the executing thread's warp and, after that, for all other participating warps too.
+Standard named barrier wait. Thread signals arrival and waits until all participating warps have arrived. First waits for all non-exited threads in the executing thread's warp, then for all other participating warps.
 
 ```ptx
 bar.sync 0;                  // all threads in CTA
@@ -540,7 +540,7 @@ barrier.cta.sync 3, 128;
 
 #### `barrier.cta.arrive a, b` / `bar.arrive a, b`
 
-Signals arrival at named barrier `a` but does **not** wait for other participating warps. PTX explicitly says `barrier{.cta}.arrive` does not cause the executing thread to wait for threads of other participating warps. This is what enables producer/consumer patterns.
+Signals arrival at barrier `a` but does **not** wait for other participating warps. This enables producer/consumer patterns.
 
 ```ptx
 bar.arrive 0, 64;
@@ -549,16 +549,11 @@ barrier.cta.arrive 1, 128;
 
 #### `barrier.cta.red.popc.u32 d, a{, b}, {!}c`
 
-A named barrier plus a population-count reduction over the predicate contribution from participating threads. Counts how many threads satisfy a condition.
-
-```ptx
-bar.red.popc.u32 r3, 1, p;
-barrier.cta.red.popc.u32 r4, 2, !p;
-```
+Barrier plus population-count reduction. Counts how many threads have predicate `c` true.
 
 #### `barrier.cta.red.{and,or}.pred p, a{, b}, {!}c`
 
-Named barrier reductions producing a predicate result using logical AND or OR over the participating threads' predicate inputs.
+Barrier plus logical reduction. Combines participating threads' predicates with AND or OR.
 
 ```ptx
 bar.red.and.pred p0, 1, p1;
@@ -570,22 +565,20 @@ barrier.cta.red.or.pred  p2, 2, !p3;
 
 ### Memory-ordering semantics
 
-PTX gives strong guarantees for CTA named barriers:
+- `.sync`, `.red`, and `.arrive` guarantee prior memory accesses are **performed** relative to all participating threads when the barrier completes.
+- `.sync` and `.red` additionally guarantee the thread does not issue new memory accesses before the barrier completes.
 
-- `barrier{.cta}.sync`, `barrier{.cta}.red`, and `barrier{.cta}.arrive` guarantee that when the barrier completes, prior memory accesses requested by that thread are **performed** relative to all threads participating in the barrier.
-- `barrier{.cta}.sync` and `barrier{.cta}.red` additionally guarantee that the thread does not issue new memory accesses before the barrier completes.
+"Performed" means:
+- **Read**: value has been transmitted from memory and cannot be modified by another participant.
+- **Write**: value is visible to participants and old value can no longer be read.
 
-PTX defines "performed" precisely:
-- A **read** is performed when the read value has been transmitted from memory and cannot be modified by another participating thread.
-- A **write** is performed when the written value is visible to participating threads and the old value can no longer be read.
+This is why named barriers are safe for shared-memory handoff inside a CTA.
 
-That is why named barriers are safe for shared-memory handoff patterns inside a CTA.
+### Reuse and completion
 
-### Reuse and completion rules
+When a CTA named barrier completes, waiting threads restart without delay and the barrier automatically reinitializes for reuse.
 
-When a CTA named barrier completes, the waiting threads restart without delay and the barrier is automatically reinitialized so it can be reused immediately.
-
-Because barrier participation is tracked at warp granularity, the instruction first waits for all non-exited threads in the executing warp before the warp is considered arrived.
+Barrier participation is tracked at warp granularity. The instruction first waits for all non-exited threads in the executing warp before the warp is considered arrived.
 
 ### Important restrictions
 
@@ -594,11 +587,11 @@ Because barrier participation is tracked at warp granularity, the instruction fi
 - Thread count `b`, when present, must be a multiple of warp size.
 - `barrier{.cta}.arrive` requires non-zero `b`.
 
-The practical consequence: think in **whole-warps arriving at a barrier**, even when `b` is smaller than the whole CTA.
+Think in **whole-warps arriving at a barrier**, even when `b` is smaller than the whole CTA.
 
 ### The `.aligned` modifier
 
-The full preferred syntax includes `{.aligned}` on the `barrier` spellings. PTX notes that `barrier{.cta}` without `.aligned` is equivalent to the `.aligned` variant and has the same restrictions. So for CTA named barriers, omitting `.aligned` does not relax the convergence rule.
+The full preferred syntax includes `{.aligned}` on `barrier` spellings. `barrier{.cta}` without `.aligned` is equivalent to the `.aligned` variant — omitting `.aligned` does not relax the convergence rule.
 
 ### Short examples
 
@@ -610,23 +603,13 @@ bar.sync 0;                  // synchronize
 ld.shared.u32 r2, [r3];     // read peers' shared data
 ```
 
-The classic "write to shared, synchronize, then read peers' shared data" pattern.
-
-#### Partial-CTA synchronization
-
-```ptx
-bar.cta.sync 1, 64;         // only 64 threads participate (must be multiple of warp size)
-```
-
 #### Producer/consumer with two named barriers
-
-PTX gives a producer/consumer example using two named barriers:
 
 ```ptx
 // Producer
 st.shared   [r0], r1;       // produce data
 bar.arrive  0, 64;          // signal "data ready"
-ld.global   r1, [r2];       // do other work
+ld.global   r1, [r2];       // other work
 bar.sync    1, 64;          // wait for "data consumed"
 
 // Consumer
@@ -635,26 +618,24 @@ ld.shared   r1, [r0];       // consume data
 bar.arrive  1, 64;          // signal "data consumed"
 ```
 
-One barrier signals "data ready," the other signals "data consumed."
-
 #### Reduction barrier
 
 ```ptx
 setp.eq.u32 p, r1, r2;
 bar.cta.red.popc.u32 r3, 1, p;    // count threads where p is true
-bar.cta.red.and.pred p0, 1, p;     // true only if all participating threads have p=true
+bar.cta.red.and.pred p0, 1, p;     // true if all threads have p=true
 ```
 
 ### Quick reference table
 
-| Form | Blocks? | Reduction result | Participants | Memory guarantee |
-|------|---------|-----------------|-------------|------------------|
-| `bar.sync a` | Yes | — | All CTA threads | Full performed guarantee + no new accesses before completion |
-| `bar.sync a, b` | Yes | — | `b` threads (warp-multiple) | Full performed guarantee + no new accesses before completion |
-| `bar.arrive a, b` | **No** | — | `b` threads (warp-multiple, non-zero) | Performed guarantee on prior accesses |
-| `bar.red.popc.u32 d, a, c` | Yes | `d` = popcount of `c` across participants | All CTA threads | Full performed guarantee + no new accesses before completion |
-| `bar.red.and.pred p, a, c` | Yes | `p` = AND of `c` across participants | All CTA threads | Full performed guarantee + no new accesses before completion |
-| `bar.red.or.pred p, a, c` | Yes | `p` = OR of `c` across participants | All CTA threads | Full performed guarantee + no new accesses before completion |
+| Form | Blocks | Result | Participants | Memory guarantee |
+|------|--------|--------|-----------|------------------|
+| `bar.sync a` | Yes | — | All CTA | Prior writes visible; no new accesses until complete |
+| `bar.sync a, b` | Yes | — | `b` threads | Prior writes visible; no new accesses until complete |
+| `bar.arrive a, b` | **No** | — | `b` threads | Prior writes visible |
+| `bar.red.popc.u32 d, a, c` | Yes | popcount | All CTA | Prior writes visible; no new accesses until complete |
+| `bar.red.and.pred p, a, c` | Yes | AND | All CTA | Prior writes visible; no new accesses until complete |
+| `bar.red.or.pred p, a, c` | Yes | OR | All CTA | Prior writes visible; no new accesses until complete |
 
 ### PTX version and target support
 
