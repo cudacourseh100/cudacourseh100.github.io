@@ -67,27 +67,27 @@ The lesson moves from "launch async work" to "make async work safe." That means 
 
 ### Why asynchronicity matters
 
-Systems alternate between **doing** and **fetching**. In a synchronous world those happen one after another. In an asynchronous world, the request for data is decoupled from the moment its result is consumed. That gap is where latency hiding lives.
+The notes frame the story in the simplest possible way: systems alternate between **doing** and **fetching**. In a synchronous world those happen one after another. In an asynchronous world, the request for work or data is decoupled from the moment its result is consumed. That is what creates latency hiding.
 
 #### Blocking / synchronous
 
-The launching thread pauses until the operation finishes. Control does not return, so no useful work overlaps the wait.
+The launching thread pauses until the operation is completely done. Control does not return, so no useful work overlaps the wait.
 
 #### Non-blocking / asynchronous
 
 The launching thread regains control immediately while some other part of the system tracks the work in the background.
 
-On GPUs math is fast and memory movement is slow. Hopper leans into this: TMA and Tensor Cores are designed so compute continues while data movement and completion tracking happen elsewhere.
+On GPUs this distinction matters because math is often fast and memory movement is comparatively slow. Hopper pushes this hard: TMA and Tensor Cores are designed so compute can continue while movement and completion tracking happen elsewhere.
 
-> **Mental model:** the goal is not to maximize async instructions. The goal is to keep expensive units busy while slower operations complete in parallel.
+> **Mental model:** the goal is not to maximize the number of async instructions. The goal is to keep expensive units busy while slower operations complete in parallel.
 
 ### Proxies, the async lifecycle, and why hazards appear
 
-The async lifecycle is three stages: initialize async work, let another part of the system track it while unrelated work continues, then synchronize where the result is needed. Hopper's twist: the part that issues work and the part that performs it may live in different **proxies**.
+The lesson's lifecycle is three-stage: initialize async work, let another part of the system track it while unrelated work continues, then synchronize exactly where the result becomes necessary. Hopper adds a crucial twist: the part that issues work and the part that performs it may live in different **proxies**.
 
 #### Generic proxy
 
-Ordinary thread-issued loads and stores. Ordering within this path is what you expect from sequential instructions inside one thread.
+Ordinary thread-issued loads and stores. Within this path, ordering is mostly what CUDA programmers already expect from sequential instructions inside one thread.
 
 #### Async proxy
 
@@ -95,15 +95,15 @@ Hardware paths like `cp.async.bulk` and `wgmma`. Once launched, they run indepen
 
 #### RAW and WAR hazards
 
-Generic proxy writes data, async proxy immediately reads the same location — the async path can observe stale state. That is a RAW hazard. The async proxy or tensor consumer is still reading a tile and the producer overwrites the same shared-memory region too early — that is a WAR hazard.
+If the generic proxy writes data and the async proxy immediately reads the same location, the async path can observe stale state. That is a read-after-write hazard. If the async proxy or tensor consumer is still reading a tile and the producer overwrites the same shared-memory region too early, that is a write-after-read hazard.
 
 - RAW matters when launch is much faster than memory visibility.
 - WAR matters when double-buffered shared tiles are reused aggressively.
 - Neither problem is solved by "the instruction finished" alone.
 
-### Fences
+### Fences are about visibility contracts, not ceremony
 
-A fence constrains how memory effects become observable. In Hopper workflows the important distinction is between ordinary ordering and cross-proxy ordering. Per-thread sequencing alone does not make generic and async paths agree on memory state.
+A fence constrains how memory effects become observable. In Hopper workflows the important distinction is between ordinary ordering and cross-proxy ordering. Standard per-thread sequencing does not automatically make generic and async paths agree on the state of memory.
 
 #### Release
 
@@ -115,7 +115,7 @@ Consumer-side ordering. Later reads are not allowed to slip before the synchroni
 
 #### Cross-proxy fence
 
-Required when generic and async paths touch the same location. `fence.proxy.async` is the bridge.
+Required when generic and async paths touch the same location. In the lesson notes, `fence.proxy.async` is the explicit bridge.
 
 ```text
 // Conceptual producer / consumer ordering
@@ -130,7 +130,7 @@ consumer reads the tile safely
 
 ### The `mbarrier` pipeline
 
-`mbarrier` is a shared-memory hardware synchronization primitive that tracks asynchronous work. A classic barrier asks "have the threads arrived?" An `mbarrier` asks "has the tracked work completed, and is this phase safe to consume?"
+The lesson defines `mbarrier` as a shared-memory hardware synchronization primitive that tracks asynchronous work. That is what makes it different from a classic barrier. A classic barrier asks "have the threads arrived?" An `mbarrier` can ask "has the tracked work completed, and is this phase safe to consume?"
 
 1. Initialize the barrier in shared memory with an expected arrival count.
 2. Attach expected transaction work for the async operation.
@@ -140,15 +140,15 @@ consumer reads the tile safely
 
 #### Initialization and reuse
 
-Initialization bugs ruin everything else. The barrier lives in shared memory, the address must be converted correctly, and the object must be 64-bit aligned. Reuse is phase-based — each pipeline round is a separate generation, not one endless counter.
+The notes are blunt here: initialization bugs ruin everything else. The barrier lives in shared memory, the address must be converted correctly, and the object must be 64-bit aligned. Reuse is phase-based, so each pipeline round is tracked as a separate generation rather than one endless counter.
 
 #### Expected transaction count
 
-For async data movement, the barrier tracks both thread arrival and outstanding work (transaction bytes). Completion requires both the arrival count and the transaction count to reach the values the barrier expects.
+For async data movement, the barrier does not just track thread arrival. It also tracks outstanding work, often framed in the notes as transaction bytes. Completion requires both the arrival side and the tracked work side to reach the state the barrier expects.
 
 #### Parity and wait semantics
 
-Parity-based waits check one specific phase. `mbarrier.try_wait.parity` and `mbarrier.test_wait.parity` tell the consumer whether that phase has completed. The `.acquire` form adds the visibility guarantee that makes subsequent reads safe.
+The parity-based waits are checking one specific phase of work. `mbarrier.try_wait.parity` and `mbarrier.test_wait.parity` tell the consumer whether the phase it cares about has completed. The `.acquire` form adds the visibility guarantee that makes subsequent reads safe.
 
 ```text
 // Conceptual consumer pattern
@@ -163,7 +163,7 @@ consume shared-memory data or descriptor-backed work safely
 
 ### Cluster barriers, async groups, and named barriers
 
-Hopper needs multiple synchronization primitives because the ownership question changes depending on scope. Coordinating producer and consumer inside one block is different from ensuring multiple CTAs in a cluster are physically present before remote shared-memory access, which is different from batching several async bulk copies into one committed group.
+Hopper needs more than one kind of synchronization because the ownership question changes. Sometimes you need to coordinate a producer and consumer inside one block. Sometimes you need multiple CTAs in a cluster to be physically present before remote shared-memory access is safe. Sometimes you want several async bulk copies to be committed as one batch.
 
 #### `barrier.cluster.arrive`
 
@@ -181,7 +181,7 @@ Batches launched bulk async operations into a committed group that later waits c
 
 Waits until only *N* committed groups remain pending, not until *N* groups have finished.
 
-Named barriers let subsets of warps synchronize without a whole-block rendezvous, which is what makes warp-specialized producer-consumer pipelines possible.
+Named barriers solve a different problem. They let subsets of warps synchronize without forcing an entire block to stop at one whole-block rendezvous. That makes them useful for warp-specialized internal producer-consumer pipelines.
 
 > **Why cluster barriers exist:** standard `__syncthreads()` cannot coordinate block-to-block handoff inside a cluster, which matters for DSMEM access and TMA multicast patterns.
 
@@ -207,443 +207,6 @@ Named barriers let subsets of warps synchronize without a whole-block rendezvous
 ### Continue the course
 
 Lesson 3 establishes the correctness layer of the asynchronous machine. Lesson 4 moves back into the movement path itself: how Hopper TMA uses a host-encoded descriptor to describe tiles, strides, swizzles, interleaving, and fetch policy before the transfer even begins.
-
----
-
-## PTX ISA Deep Dive: `mbarrier` Internals
-
-*Reference: PTX ISA 9.2, `mbarrier` chapter and the async-copy / async-store / async-reduce sections that hook into `mbarrier::complete_tx::bytes`.*
-
-### What an `mbarrier` actually is
-
-In PTX, an `mbarrier` is an opaque `.b64`, 8-byte-aligned object in shared memory. It tracks four things:
-
-1. The **current phase**.
-2. The current phase's **pending-arrival count**.
-3. The next phase's **expected-arrival count**.
-4. The current phase's **`tx-count`** for outstanding asynchronous transactions.
-
-A phase completes only when **both** pending arrivals and `tx-count` reach zero. Completion then atomically advances the phase and reloads pending arrivals from expected arrivals.
-
-### The two-debt mental model
-
-An `mbarrier` phase has **two debts** that must be paid before waiters can observe completion:
-
-| Debt | Meaning | Increased by | Decreased by |
-|------|---------|--------------|--------------|
-| Arrival debt | How many arrivals are still missing? | `mbarrier.init` (sets initial count) | `mbarrier.arrive*` |
-| Transaction debt | How many async transactions are still outstanding? | `mbarrier.expect_tx` / `mbarrier.arrive.expect_tx` | `mbarrier.complete_tx` (explicit or implicit) |
-
-`mbarrier.arrive*` pays down the first debt. `mbarrier.expect_tx` adds to the second debt. `mbarrier.complete_tx` pays down the second debt. `mbarrier.arrive.expect_tx` does both in one shot.
-
-### `mbarrier.init`
-
-```
-mbarrier.init{.shared{::cta}}.b64 [addr], count;
-```
-
-Creates a valid barrier object at `addr`. Sets:
-- phase = 0
-- expected-arrival count = `count`
-- pending-arrival count = `count`
-- `tx-count` = 0
-
-`count` must be in `[1, 2^20 - 1]`. If you omit the state space, generic addressing is used, but the address must still resolve to `.shared::cta` or behavior is undefined. Calling `mbarrier.init` on memory that already holds a valid `mbarrier` is also undefined — call `mbarrier.inval` first. Requires `sm_80+`.
-
-`init` means: "for this phase, I expect `count` arrivals, and I am not yet tracking any async transactions." Without any `expect_tx`, the phase completes when `N` arrive-on events have happened.
-
-### `mbarrier.arrive`
-
-```
-mbarrier.arrive{.sem.scope}{.shared{::cta}}.b64 state, [addr]{, count};
-```
-
-Performs an **arrive-on** operation: decrements the barrier's pending-arrival count by `count` (default 1), then checks whether the phase can now complete. The phase completes only if pending arrivals are zero **and** `tx-count` is zero.
-
-Details:
-- Default `.release` semantics; `.relaxed` optional on newer targets.
-- On `.shared::cta`, returns an opaque 64-bit `state` capturing the phase **before** the arrive-on. Feed this to `mbarrier.test_wait` or `mbarrier.try_wait` later.
-- On `.shared::cluster` (not local CTA shared memory), cannot return a value — destination must be `_`.
-- Basic `arrive`: PTX 7.0 / `sm_80+`. `.expect_tx`, `.cluster`, `.scope`, `.relaxed`: `sm_90+`.
-
-`arrive` says "my participation in this phase is done" and decreases arrival debt. It does **not** touch async work. If `tx-count` is nonzero, `arrive` alone will not complete the phase — you also need `complete_tx`.
-
-### `mbarrier.arrive.expect_tx`
-
-```
-mbarrier.arrive.expect_tx{.sem.scope}{...}.b64 state, [addr], txCount;
-```
-
-Fused form: first does `expect-tx` with `expectCount = txCount`, then does the normal arrive-on with arrive count fixed at 1. Adds `txCount` to the phase's transaction debt and contributes one arrival toward the arrival debt.
-
-Use when a thread's arrival also means "this phase must not complete until `txCount` async transaction units are retired." Inherits normal `arrive` behavior for return state and memory semantics.
-
-**Watch out:** this can make a phase *look* arrival-complete while still incomplete — it may have driven pending arrivals to zero but also increased `tx-count`. Waiters cannot observe completion until `complete_tx` drives `tx-count` back to zero.
-
-### `mbarrier.expect_tx`
-
-```
-mbarrier.expect_tx{.sem.scope}{.space}.b64 [addr], txCount;
-```
-
-Only increases the current phase's `tx-count` by `txCount`. Does not touch pending arrivals or wait. Supports `.shared::cta` and `.shared::cluster`, uses generic addressing if no state space is given, only `.relaxed` semantics. PTX 8.0+, `sm_90+`.
-
-Purely "increase async debt." Useful when async work and thread arrival are logically separate, or when another instruction will later retire the debt via `complete_tx`.
-
-### `mbarrier.complete_tx`
-
-```
-mbarrier.complete_tx{.sem.scope}{.space}.b64 [addr], txCount;
-```
-
-Opposite accounting step: decrements `tx-count` by `txCount`, then checks if the phase can complete. The instruction itself does **not** perform an async memory operation — it merely simulates completion and applies the barrier side effect. Like `expect_tx`: supports `.shared::cta` and `.shared::cluster`, only `.relaxed`, requires `sm_90+`.
-
-If pending arrivals are zero, this flips the barrier to the next phase. If arrivals are still pending, it just reduces transaction debt and the barrier stays incomplete.
-
-**Important:** explicit `mbarrier.complete_tx` is only `.relaxed`. Several async instructions generate **implicit** `complete-tx` when the async operation finishes. `cp.async.bulk...mbarrier::complete_tx::bytes` performs a `complete-tx` with `completeCount` equal to bytes copied; that implicit `complete-tx` has `.release` semantics at `.cluster` scope. Same for `cp.async.bulk.tensor`, `st.async.shared::cluster.mbarrier::complete_tx::bytes`, and `cp.reduce.async.bulk`.
-
-### How they fit together in one phase
-
-A typical phase:
-
-1. **`mbarrier.init [bar], N`** — expects `N` arrivals and zero async debt.
-2. **Threads arrive** — via `mbarrier.arrive` or `mbarrier.arrive.expect_tx`. Use `arrive` if no async tracking, `arrive.expect_tx` if the phase also tracks async work. Or call `expect_tx` separately.
-3. **Async operations retire debt** — explicitly via `mbarrier.complete_tx` or implicitly via `cp.async.bulk...mbarrier::complete_tx::bytes` and similar.
-4. **Phase completes** — when both arrival debt and transaction debt reach zero. Phase advances atomically. Waiters observe this with `mbarrier.test_wait` / `mbarrier.try_wait`; with `.acquire`, those waits are the acquire side of synchronization. PTX requires at least one wait must observe completion before any arrival in the next phase.
-
-### Quick reference
-
-| Instruction | Purpose |
-|-------------|---------|
-| `mbarrier.init` | Start a reusable barrier phase with `count` expected arrivals. |
-| `mbarrier.arrive` | Signal arrival; subtract from pending arrivals. |
-| `mbarrier.arrive.expect_tx` | Signal arrival and add `txCount` async debt. |
-| `mbarrier.expect_tx` | Add `txCount` async debt. |
-| `mbarrier.complete_tx` | Retire `txCount` async debt. |
-
-**Watch out:** `arrive` does not mean completion if `tx-count` is nonzero. If you called `expect_tx` anywhere in the phase, the barrier won't complete until `complete_tx` drives `tx-count` back to zero.
-
----
-
-## PTX ISA Deep Dive: Fences and Proxy Fences
-
-*Reference: PTX ISA 9.2, fence / membar sections and the CUDA Programming Guide proxy model.*
-
-### The mental model
-
-Ordinary loads/stores/atomics/reductions use the **generic proxy**. Some mechanisms use a different proxy, especially the **async proxy**. A proxy is an abstract label on a method of memory access — if two accesses use different proxies, a **proxy fence is required** to synchronize them.
-
-The memory model requires that two operations use the **same proxy** to be "morally strong" with respect to each other. Generic on one side and async on the other means ordinary memory-order reasoning is insufficient; you need a cross-proxy fence.
-
-`cp.async`, `cp.async.bulk`, `cp.reduce.async.bulk`, and `wgmma.mma_async` are not normal in-thread operations in plain program order. They have weaker ordering guarantees, and you must rely on each instruction family's documented completion and synchronization rules.
-
-### PTX fence syntax reference
-
-```
-// Thread fence:
-fence{.sem}.scope;
-
-// Thread fence with sync restriction:
-fence.acquire.sync_restrict::shared::cluster.cluster;
-fence.release.sync_restrict::shared::cta.cluster;
-
-// Operation fence:
-fence.op_restrict.release.cluster;
-
-// Proxy fence (bi-directional):
-fence.proxy.proxykind;
-
-// Proxy fence (uni-directional):
-fence.proxy.to_proxykind::from_proxykind.release.scope;
-fence.proxy.to_proxykind::from_proxykind.acquire.scope [addr], size;
-
-// Async/generic restricted proxy fence forms:
-fence.proxy.async::generic.acquire.sync_restrict::shared::cluster.cluster;
-fence.proxy.async::generic.release.sync_restrict::shared::cta.cluster;
-
-// Old-style membar:
-membar.level;
-membar.proxy.proxykind;
-```
-
-### 1. Ordinary fences: `fence` and old-style `membar`
-
-The main syntax is `fence{.sem}.scope`. Semantic qualifiers: `.sc`, `.acq_rel`, `.acquire`, `.release`. Scopes: `.cta`, `.cluster`, `.gpu`, `.sys`. The old `membar.level` form still exists with levels `.cta`, `.gl`, `.sys`. On `sm_70+`, `membar` is effectively `fence.sc`, and `membar.gl` maps to `fence.*.gpu`.
-
-For scope, PTX defines:
-- `.cta` — current thread block
-- `.cluster` — current cluster
-- `.gpu` — current device
-- `.sys` — whole program including host threads and all devices
-
-#### `fence.acq_rel` (the default)
-
-Default if you omit the semantic qualifier. Sufficient for most synchronization patterns, but only synchronizes when combined with the right surrounding memory operations. `fence.acq_rel` by itself is not magic global synchronization — it participates in a pattern: "release fence; strong write" on one side, "strong read; acquire fence" on the other.
-
-A release pattern is `fence.release` followed by a strong write. An acquire pattern is a strong read followed by `fence.acquire`. If the write from the release side is what the acquire side reads, the two synchronize and establish causality. The classic message-passing litmus test: producer writes data, fences, writes flag; consumer reads flag, fences, reads data.
-
-#### `fence.sc` (the strong fence)
-
-All morally strong `fence.sc` operations participate in a runtime partial order (Fence-SC order). If two `fence.sc` operations are ordered there, they synchronize. In the store-buffering litmus test, `fence.sc.sys` prevents the "both reads see 0" result; `fence.acq_rel` does **not**.
-
-#### Fine-grained ordinary fence variants
-
-`fence.acquire` and `fence.release` are newer qualifiers (PTX 8.6, `sm_90+`). Also:
-- `fence.op_restrict.release.cluster`, where `.op_restrict = .mbarrier_init`, meaning the fence only orders prior `mbarrier.init` operations by the same thread.
-- `.sync_restrict` forms for `.shared::cta` and `.shared::cluster`, which narrow the fence's effect to those state spaces and require `.cluster` scope.
-
-### 2. Proxy fences in general: `fence.proxy.*`
-
-Proxy fences bridge two sides of a communication that use different proxies. There are two flavors: **bi-directional** (orders both directions between generic and the named proxy) and **uni-directional** (orders "from proxy X" before "to proxy Y").
-
-Bi-directional proxy kinds: `.alias`, `.async`, `.async.global`, `.async.shared::cta`, `.async.shared::cluster`. `fence.proxy.alias` handles virtual aliases of the same physical location. `fence.proxy.async.shared::cta` narrows the cross-proxy ordering to async-vs-generic on CTA shared memory only.
-
-#### The alias case
-
-The PTX litmus example shows a write through one virtual alias, then `fence.proxy.alias`, then a read through another alias. Virtual aliases of the same physical location require an alias proxy fence along the synchronization path.
-
-#### Uni-directional proxy fences
-
-Uni-directional proxy fences have `.release` / `.acquire` semantics. The **direction** comes from `to_proxykind::from_proxykind`; `.release` and `.acquire` control whether the proxy fence participates in a release or acquire synchronization pattern. A `.release` proxy fence forms a release sequence that synchronizes with an acquire sequence containing a `.acquire` proxy fence.
-
-The address-range form of uni-directional proxy acquire: `addr` and `size` define the range over which cross-proxy ordering applies. Only supported `size` is `128`, and `addr` must be a generic address landing in `.global`.
-
-### 3. `fence.proxy.async` specifically
-
-Use when one side is in the **generic proxy** and the other is in the **async proxy**.
-
-**Not every async-looking instruction uses the async proxy:**
-- Plain `cp.async` is a weak memory operation performed in the **generic proxy**.
-- `cp.async.bulk` and `cp.reduce.async.bulk` are performed in the **async proxy**.
-- `wgmma.mma_async` is also performed in the **async proxy**.
-
-Easy place to get tripped up. The rule:
-
-| Traffic pattern | Fence needed |
-|----------------|--------------|
-| Ordinary generic-proxy traffic | Ordinary `fence` |
-| Generic-vs-async traffic | `fence.proxy.async` |
-| Aliasing through different virtual addresses | `fence.proxy.alias` |
-
-#### What plain `fence.proxy.async` means
-
-`fence.proxy.async` is the **bi-directional** form: generic-proxy and async-proxy accesses to the same location must respect each other's ordering. Narrower forms exist for when you only care about one state space: `fence.proxy.async.shared::cta`, `fence.proxy.async.shared::cluster`, `fence.proxy.async.global`.
-
-#### What it is for
-
-Data produced by normal stores and consumed by an async-proxy operation (or vice versa). If the same location is touched across generic and async proxies, you need this fence.
-
-`wgmma` trap: **`wgmma.fence` is not a substitute for `fence.proxy.async`.** `wgmma.fence` orders **register** accesses relative to `wgmma.mma_async`. If you wrote matrices to **shared memory** generically and `wgmma.mma_async` reads them through the async proxy, you still need an **async proxy fence** for the shared-memory handoff.
-
-#### What it does *not* do
-
-`fence.proxy.async` does **not** mean "wait until the async operation is finished." It only provides cross-proxy ordering. Completion is separate:
-- `cp.async.bulk` / `cp.reduce.async.bulk` completion must be observed using an async-group or `mbarrier`.
-- `wgmma.mma_async` requires `wgmma.commit_group` / `wgmma.wait_group`.
-- `clusterlaunchcontrol.try_cancel` can only use the documented `mbarrier` mechanism.
-
-Important convenience: **completion** of `cp{.reduce}.async.bulk` and `wgmma.mma_async` is followed by an **implicit generic-async proxy fence**, so once completion is observed, the result is visible to the generic proxy. You still need both pieces: a completion wait to know the async op is done, and proxy-fence semantics so generic code can safely read the results.
-
-### 4. The acquire/release flavored `fence.proxy.async::generic.*` forms
-
-These show up in cluster and advanced async examples:
-
-```
-fence.proxy.async::generic.release.sync_restrict::shared::cta.cluster;
-fence.proxy.async::generic.acquire.sync_restrict::shared::cluster.cluster;
-```
-
-Not "just stronger versions" of plain `fence.proxy.async`. They are **directional** and participate in **release/acquire synchronization patterns** across threads while also establishing cross-proxy ordering. The `clusterlaunchcontrol.try_cancel` example uses them to order a generic-proxy weak read of a shared-memory handle against later async-proxy writes across cluster iterations.
-
-`.sync_restrict` qualifiers:
-- `.sync_restrict::shared::cta` may only be used with `.release`
-- `.sync_restrict::shared::cluster` may only be used with `.acquire`
-- In either case the scope must be `.cluster`
-
-This is a very narrow acquire/release bridge for specific shared-memory communication patterns across CTAs in a cluster.
-
-### 5. Version and architecture support
-
-| Feature | Minimum PTX ISA | Minimum SM |
-|---------|----------------|------------|
-| `fence` | — | `sm_70` |
-| `membar.proxy` | — | `sm_60` |
-| `fence.proxy` | — | `sm_70` |
-| `fence.proxy.async` | PTX 8.0 | `sm_90` |
-| `.cluster` scope | — | `sm_90` |
-| `.acquire` / `.release` qualifiers for `fence` | — | `sm_90` |
-
-### Practical "when to use which fence" cheat sheet
-
-| Situation | Fence to use |
-|-----------|-------------|
-| Normal message-passing on the generic proxy | `fence.acq_rel.scope` |
-| Need SC-style behavior that acquire/release patterns do not guarantee | `fence.sc.scope` |
-| Same physical bytes touched through different virtual aliases | `fence.proxy.alias` |
-| One side is generic, other side is async proxy (`cp.async.bulk`, `cp.reduce.async.bulk`, `wgmma.mma_async`) | `fence.proxy.async[...]` |
-| Need cross-proxy ordering AND release/acquire across CTAs in a cluster | `fence.proxy.async::generic.{release,acquire}.sync_restrict::shared::...` |
-
-**Biggest gotcha:** `cp.async` is generic-proxy, but `cp.async.bulk` and `wgmma.mma_async` are async-proxy. That one distinction often determines whether you need an ordinary fence, a proxy fence, or both.
-
-> **Do not confuse ordering with completion.** Proxy fences order visibility across proxies. `wait_group`, `commit_group`, `mbarrier`, or related mechanisms tell you the async work is actually done.
-
----
-
-## PTX ISA Deep Dive: CTA Named Barriers (`bar` / `barrier`)
-
-*Reference: PTX ISA 9.2, `bar` / `barrier` instruction pages.*
-
-CTA barrier resources used by `bar` / `barrier` instructions. Each CTA has **16 logical barriers numbered `0..15`**. Operand `a` selects one of them.
-
-### Full instruction forms
-
-```ptx
-// Preferred spellings
-barrier{.cta}.sync{.aligned}          a{, b};
-barrier{.cta}.arrive{.aligned}        a, b;
-barrier{.cta}.red.popc{.aligned}.u32  d, a{, b}, {!}c;
-barrier{.cta}.red.op{.aligned}.pred   p, a{, b}, {!}c;
-
-// Older short spellings
-bar{.cta}.sync                        a{, b};
-bar{.cta}.arrive                      a, b;
-bar{.cta}.red.popc.u32                d, a{, b}, {!}c;
-bar{.cta}.red.op.pred                 p, a{, b}, {!}c;
-
-.op = { .and, .or };
-```
-
-### What the operands mean
-
-Operands: `a`, `b`, `d` are `.u32`; `p`, `c` are predicates.
-
-| Operand | Meaning |
-|---------|---------|
-| `a` | Barrier ID, `0..15` (immediate or register) |
-| `b` | Thread count (multiple of warp size). Omit for all CTA threads. |
-| `d` | Reduction destination (for `popc`) |
-| `p` | Predicate destination (for `.and` / `.or`) |
-| `c` | Per-thread input predicate, optionally negated `{!}c` |
-
-### What each instruction does
-
-#### `barrier.cta.sync a{, b}` / `bar.sync a{, b}`
-
-Standard named barrier wait. Thread signals arrival and waits until all participating warps have arrived. First waits for all non-exited threads in the executing thread's warp, then for all other participating warps.
-
-```ptx
-bar.sync 0;                  // all threads in CTA
-bar.cta.sync 1, 64;          // only 64 threads
-barrier.cta.sync 2;
-barrier.cta.sync 3, 128;
-```
-
-#### `barrier.cta.arrive a, b` / `bar.arrive a, b`
-
-Signals arrival at barrier `a` but does **not** wait for other participating warps. This enables producer/consumer patterns.
-
-```ptx
-bar.arrive 0, 64;
-barrier.cta.arrive 1, 128;
-```
-
-#### `barrier.cta.red.popc.u32 d, a{, b}, {!}c`
-
-Barrier plus population-count reduction. Counts how many threads have predicate `c` true.
-
-#### `barrier.cta.red.{and,or}.pred p, a{, b}, {!}c`
-
-Barrier plus logical reduction. Combines participating threads' predicates with AND or OR.
-
-```ptx
-bar.red.and.pred p0, 1, p1;
-bar.red.or.pred  p2, 2, !p3;
-
-barrier.cta.red.and.pred p0, 1, p1;
-barrier.cta.red.or.pred  p2, 2, !p3;
-```
-
-### Memory-ordering semantics
-
-- `.sync`, `.red`, and `.arrive` guarantee prior memory accesses are **performed** relative to all participating threads when the barrier completes.
-- `.sync` and `.red` additionally guarantee the thread does not issue new memory accesses before the barrier completes.
-
-"Performed" means:
-- **Read**: value has been transmitted from memory and cannot be modified by another participant.
-- **Write**: value is visible to participants and old value can no longer be read.
-
-This is why named barriers are safe for shared-memory handoff inside a CTA.
-
-### Reuse and completion
-
-When a CTA named barrier completes, waiting threads restart without delay and the barrier automatically reinitializes for reuse.
-
-Barrier participation is tracked at warp granularity. The instruction first waits for all non-exited threads in the executing warp before the warp is considered arrived.
-
-### Important restrictions
-
-- For `barrier{.cta}` without a thread count, the instruction is equivalent to the `.aligned` variant and has the same restrictions.
-- All threads in a warp, except exited threads, must execute `barrier{.cta}` in convergence.
-- Thread count `b`, when present, must be a multiple of warp size.
-- `barrier{.cta}.arrive` requires non-zero `b`.
-
-Think in **whole-warps arriving at a barrier**, even when `b` is smaller than the whole CTA.
-
-### The `.aligned` modifier
-
-The full preferred syntax includes `{.aligned}` on `barrier` spellings. `barrier{.cta}` without `.aligned` is equivalent to the `.aligned` variant — omitting `.aligned` does not relax the convergence rule.
-
-### Short examples
-
-#### Full-CTA synchronization
-
-```ptx
-st.shared.u32 [r0], r1;     // write to shared
-bar.sync 0;                  // synchronize
-ld.shared.u32 r2, [r3];     // read peers' shared data
-```
-
-#### Producer/consumer with two named barriers
-
-```ptx
-// Producer
-st.shared   [r0], r1;       // produce data
-bar.arrive  0, 64;          // signal "data ready"
-ld.global   r1, [r2];       // other work
-bar.sync    1, 64;          // wait for "data consumed"
-
-// Consumer
-bar.sync    0, 64;          // wait for "data ready"
-ld.shared   r1, [r0];       // consume data
-bar.arrive  1, 64;          // signal "data consumed"
-```
-
-#### Reduction barrier
-
-```ptx
-setp.eq.u32 p, r1, r2;
-bar.cta.red.popc.u32 r3, 1, p;    // count threads where p is true
-bar.cta.red.and.pred p0, 1, p;     // true if all threads have p=true
-```
-
-### Quick reference table
-
-| Form | Blocks | Result | Participants | Memory guarantee |
-|------|--------|--------|-----------|------------------|
-| `bar.sync a` | Yes | — | All CTA | Prior writes visible; no new accesses until complete |
-| `bar.sync a, b` | Yes | — | `b` threads | Prior writes visible; no new accesses until complete |
-| `bar.arrive a, b` | **No** | — | `b` threads | Prior writes visible |
-| `bar.red.popc.u32 d, a, c` | Yes | popcount | All CTA | Prior writes visible; no new accesses until complete |
-| `bar.red.and.pred p, a, c` | Yes | AND | All CTA | Prior writes visible; no new accesses until complete |
-| `bar.red.or.pred p, a, c` | Yes | OR | All CTA | Prior writes visible; no new accesses until complete |
-
-### PTX version and target support
-
-- `bar.sync` without thread count: PTX ISA 1.0
-- Register operands, thread count, and `bar.{arrive,red}`: PTX ISA 2.0
-- `barrier` instruction spelling: PTX ISA 6.0
-
----
 
 ## Full Slide Deck Text
 

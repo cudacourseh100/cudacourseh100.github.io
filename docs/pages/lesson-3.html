@@ -199,6 +199,9 @@
                 <a href="#mbarrier">The mbarrier pipeline</a>
                 <a href="#groups">Cluster barriers and async groups</a>
                 <a href="#takeaways">Design rules</a>
+                <a href="#ptx-mbarrier">PTX mbarrier deep dive</a>
+                <a href="#ptx-fences">PTX fences deep dive</a>
+                <a href="#ptx-named-barriers">PTX named barriers deep dive</a>
                 <a href="#continue">Continue the course</a>
               </nav>
             </div>
@@ -462,6 +465,151 @@ consume shared-memory data or descriptor-backed work safely</code></pre>
                   <tr>
                     <th><code>wait_group</code></th>
                     <td>A bulk async group wait based on how many committed groups are still pending.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+
+            <section class="lesson-chapter" id="ptx-mbarrier" data-reveal>
+              <h2>PTX ISA Deep Dive: <code>mbarrier</code> Internals</h2>
+              <p><em>Reference: PTX ISA 9.2, <code>mbarrier</code> chapter and async-copy / async-store / async-reduce sections.</em></p>
+
+              <h3>What an <code>mbarrier</code> actually is</h3>
+              <p>In PTX, an <code>mbarrier</code> is an opaque <code>.b64</code>, 8-byte-aligned object in shared memory. It tracks four things:</p>
+              <ol>
+                <li>The <strong>current phase</strong>.</li>
+                <li>The current phase's <strong>pending-arrival count</strong>.</li>
+                <li>The next phase's <strong>expected-arrival count</strong>.</li>
+                <li>The current phase's <strong><code>tx-count</code></strong> for outstanding asynchronous transactions.</li>
+              </ol>
+              <p>A phase completes only when <strong>both</strong> pending arrivals and <code>tx-count</code> reach zero. Completion then atomically advances the phase and reloads pending arrivals from expected arrivals.</p>
+
+              <h3>The two-debt mental model</h3>
+              <p>An <code>mbarrier</code> phase has <strong>two debts</strong> that must be paid before waiters can observe completion:</p>
+              <table class="lesson-table" aria-label="mbarrier debts">
+                <tbody>
+                  <tr>
+                    <th>Debt</th>
+                    <th>Meaning</th>
+                    <th>Increased by</th>
+                    <th>Decreased by</th>
+                  </tr>
+                  <tr>
+                    <td>Arrival debt</td>
+                    <td>How many arrivals are still missing?</td>
+                    <td><code>mbarrier.init</code> (sets initial count)</td>
+                    <td><code>mbarrier.arrive*</code></td>
+                  </tr>
+                  <tr>
+                    <td>Transaction debt</td>
+                    <td>How many async transactions are still outstanding?</td>
+                    <td><code>mbarrier.expect_tx</code> / <code>mbarrier.arrive.expect_tx</code></td>
+                    <td><code>mbarrier.complete_tx</code> (explicit or implicit)</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p><code>mbarrier.arrive*</code> pays down the first debt. <code>mbarrier.expect_tx</code> adds to the second debt. <code>mbarrier.complete_tx</code> pays down the second debt. <code>mbarrier.arrive.expect_tx</code> does both in one shot.</p>
+
+              <h3>Key instructions</h3>
+              <p><strong><code>mbarrier.init</code></strong> — Creates a barrier expecting <code>count</code> arrivals and zero async debt.</p>
+              <p><strong><code>mbarrier.arrive</code></strong> — Decrements pending arrivals. Does not touch async work unless <code>tx-count</code> is already zero. If <code>tx-count</code> is nonzero, <code>arrive</code> alone will not complete the phase.</p>
+              <p><strong><code>mbarrier.arrive.expect_tx</code></strong> — Fused form: adds <code>txCount</code> to transaction debt and contributes one arrival. Can make a phase <em>look</em> arrival-complete while still incomplete if <code>tx-count</code> is nonzero.</p>
+              <p><strong><code>mbarrier.expect_tx</code></strong> — Purely "increase async debt." Useful when async work and thread arrival are logically separate.</p>
+              <p><strong><code>mbarrier.complete_tx</code></strong> — Decrements <code>tx-count</code>. Explicit form is only <code>.relaxed</code>, but several async instructions generate <strong>implicit</strong> <code>complete-tx</code> with <code>.release</code> semantics (e.g., <code>cp.async.bulk...mbarrier::complete_tx::bytes</code>).</p>
+
+              <h3>Watch out</h3>
+              <p><code>arrive</code> does not mean completion if <code>tx-count</code> is nonzero. If you called <code>expect_tx</code> anywhere in the phase, the barrier won't complete until <code>complete_tx</code> drives <code>tx-count</code> back to zero.</p>
+            </section>
+
+            <section class="lesson-chapter" id="ptx-fences" data-reveal>
+              <h2>PTX ISA Deep Dive: Fences and Proxy Fences</h2>
+              <p><em>Reference: PTX ISA 9.2, fence / membar sections.</em></p>
+
+              <h3>The mental model</h3>
+              <p>Ordinary loads/stores/atomics/reductions use the <strong>generic proxy</strong>. Some mechanisms use a different proxy, especially the <strong>async proxy</strong>. A proxy is an abstract label on a method of memory access — if two accesses use different proxies, a <strong>proxy fence is required</strong> to synchronize them.</p>
+              <p>The memory model requires that two operations use the <strong>same proxy</strong> to be "morally strong" with respect to each other. Generic on one side and async on the other means ordinary memory-order reasoning is insufficient — you need a cross-proxy fence.</p>
+              <p><code>cp.async</code>, <code>cp.async.bulk</code>, <code>cp.reduce.async.bulk</code>, and <code>wgmma.mma_async</code> are not normal in-thread operations in plain program order. They have weaker ordering guarantees, and you must rely on each instruction family's documented completion and synchronization rules.</p>
+
+              <h3>Ordinary fences: <code>fence</code> and old-style <code>membar</code></h3>
+              <p>Main syntax: <code>fence{.sem}.scope</code>. Semantics: <code>.sc</code>, <code>.acq_rel</code>, <code>.acquire</code>, <code>.release</code>. Scopes: <code>.cta</code>, <code>.cluster</code>, <code>.gpu</code>, <code>.sys</code>.</p>
+              <p><strong><code>fence.acq_rel</code> (default)</strong> — Sufficient for most synchronization patterns, but only synchronizes when combined with the right surrounding memory operations. Not magic global synchronization.</p>
+              <p><strong><code>fence.sc</code></strong> — Stronger, slower. All morally strong <code>fence.sc</code> operations participate in Fence-SC order. If two are ordered there, they synchronize.</p>
+
+              <h3><code>fence.proxy.async</code> specifically</h3>
+              <p>Use when one side is in the <strong>generic proxy</strong> and the other is in the <strong>async proxy</strong>.</p>
+              <p><strong>Not every async-looking instruction uses the async proxy:</strong></p>
+              <ul>
+                <li>Plain <code>cp.async</code> is generic-proxy.</li>
+                <li><code>cp.async.bulk</code> and <code>cp.reduce.async.bulk</code> are async-proxy.</li>
+                <li><code>wgmma.mma_async</code> is async-proxy.</li>
+              </ul>
+              <p>Easy place to get tripped up. Use <code>fence.proxy.async</code> when generic and async paths touch the same location.</p>
+              <p><strong>Watch out:</strong> <code>wgmma.fence</code> is not a substitute for <code>fence.proxy.async</code>. <code>wgmma.fence</code> orders <strong>register</strong> accesses. If you wrote matrices to <strong>shared memory</strong> generically and <code>wgmma.mma_async</code> reads them through the async proxy, you still need <code>fence.proxy.async</code> for the shared-memory handoff.</p>
+              <p><strong>Important:</strong> <code>fence.proxy.async</code> does <strong>not</strong> mean "wait until the async operation is finished." It only provides cross-proxy ordering. Completion is separate. You need both a completion wait (to know the async op is done) and proxy-fence semantics (so generic code can safely read the results).</p>
+            </section>
+
+            <section class="lesson-chapter" id="ptx-named-barriers" data-reveal>
+              <h2>PTX ISA Deep Dive: CTA Named Barriers</h2>
+              <p><em>Reference: PTX ISA 9.2, <code>bar</code> / <code>barrier</code> instruction pages.</em></p>
+
+              <p>CTA barrier resources used by <code>bar</code> / <code>barrier</code> instructions. Each CTA has <strong>16 logical barriers numbered <code>0..15</code></strong>. Operand <code>a</code> selects one of them.</p>
+
+              <h3>Instruction forms</h3>
+              <pre class="lesson-pre"><code>// Preferred spellings
+barrier{.cta}.sync{.aligned}          a{, b};
+barrier{.cta}.arrive{.aligned}        a, b;
+barrier{.cta}.red.popc{.aligned}.u32  d, a{, b}, {!}c;
+barrier{.cta}.red.op{.aligned}.pred   p, a{, b}, {!}c;
+
+// Older short spellings
+bar{.cta}.sync                        a{, b};
+bar{.cta}.arrive                      a, b;
+bar{.cta}.red.popc.u32                d, a{, b}, {!}c;
+bar{.cta}.red.op.pred                 p, a{, b}, {!}c;</code></pre>
+
+              <h3>Key instructions</h3>
+              <p><strong><code>bar.sync a</code></strong> — Standard named barrier wait. Thread signals arrival and waits until all participating warps have arrived.</p>
+              <p><strong><code>bar.arrive a, b</code></strong> — Signals arrival but does <strong>not</strong> wait for other participating warps. Enables producer/consumer patterns.</p>
+              <p><strong><code>bar.red.popc.u32 d, a, c</code></strong> — Barrier plus population-count reduction. Counts how many threads have predicate <code>c</code> true.</p>
+              <p><strong><code>bar.red.and.pred p, a, c</code></strong> — Barrier plus logical AND of predicates across participants.</p>
+              <p><strong><code>bar.red.or.pred p, a, c</code></strong> — Barrier plus logical OR of predicates across participants.</p>
+
+              <h3>Memory-ordering semantics</h3>
+              <p><code>.sync</code>, <code>.red</code>, and <code>.arrive</code> guarantee prior memory accesses are <strong>performed</strong> relative to all participating threads when the barrier completes. <code>.sync</code> and <code>.red</code> additionally guarantee the thread does not issue new memory accesses before the barrier completes.</p>
+              <p>"Performed" means: reads are transmitted from memory and cannot be modified by another participant; writes are visible to participants and old values can no longer be read. This is why named barriers are safe for shared-memory handoff inside a CTA.</p>
+
+              <h3>Quick reference</h3>
+              <table class="lesson-table" aria-label="Named barrier forms">
+                <tbody>
+                  <tr>
+                    <th>Form</th>
+                    <th>Blocks</th>
+                    <th>Memory guarantee</th>
+                  </tr>
+                  <tr>
+                    <td><code>bar.sync a</code></td>
+                    <td>Yes</td>
+                    <td>Prior writes visible; no new accesses until complete</td>
+                  </tr>
+                  <tr>
+                    <td><code>bar.sync a, b</code></td>
+                    <td>Yes</td>
+                    <td>Prior writes visible; no new accesses until complete</td>
+                  </tr>
+                  <tr>
+                    <td><code>bar.arrive a, b</code></td>
+                    <td><strong>No</strong></td>
+                    <td>Prior writes visible</td>
+                  </tr>
+                  <tr>
+                    <td><code>bar.red.popc.u32 d, a, c</code></td>
+                    <td>Yes</td>
+                    <td>Prior writes visible; no new accesses until complete</td>
+                  </tr>
+                  <tr>
+                    <td><code>bar.red.and.pred p, a, c</code></td>
+                    <td>Yes</td>
+                    <td>Prior writes visible; no new accesses until complete</td>
                   </tr>
                 </tbody>
               </table>

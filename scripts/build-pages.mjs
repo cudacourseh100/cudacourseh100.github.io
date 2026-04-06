@@ -689,7 +689,7 @@ async function validateHtml(relativeHtmlPath) {
     const targetPath = path.resolve(path.dirname(htmlPath), cleanValue);
 
     if (!(await fileExists(targetPath))) {
-      if (cleanValue.endsWith(".pdf") || cleanValue.startsWith("files/") || cleanValue.startsWith("../files/")) {
+      if (cleanValue.endsWith(".pdf") || cleanValue.startsWith("files/") || cleanValue.startsWith("../files/") || cleanValue.startsWith("preview-snaps/")) {
         console.warn(`  Warning: optional asset missing from ${relativeHtmlPath}: ${cleanValue}`);
       } else {
         missing.push(`Missing local asset from ${relativeHtmlPath}: ${cleanValue}`);
