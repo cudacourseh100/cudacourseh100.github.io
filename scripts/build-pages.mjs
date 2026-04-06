@@ -713,6 +713,7 @@ async function build() {
   }
 
   await copyRelative("markdown", "markdown", { optional: true });
+  await copyRelative("preview-snaps", "preview-snaps", { optional: true });
 
   for (const file of pageFiles) {
     await copyRelative(file);
