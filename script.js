@@ -1,5 +1,17 @@
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 const revealTargets = [...document.querySelectorAll("[data-reveal]")];
+const lessonVideoData = {
+  "lesson-1.html": { lessonLabel: "Lesson 01", startLabel: "0:23:30", startSeconds: 1410 },
+  "lesson-2.html": { lessonLabel: "Lesson 02", startLabel: "1:32:49", startSeconds: 5569 },
+  "lesson-3.html": { lessonLabel: "Lesson 03", startLabel: "2:15:14", startSeconds: 8114 },
+  "lesson-4.html": { lessonLabel: "Lesson 04", startLabel: "4:10:06", startSeconds: 15006 },
+  "lesson-5.html": { lessonLabel: "Lesson 05", startLabel: "5:06:01", startSeconds: 18361 },
+  "lesson-6.html": { lessonLabel: "Lesson 06", startLabel: "5:53:41", startSeconds: 21221 },
+  "lesson-7.html": { lessonLabel: "Lesson 07", startLabel: "7:44:03", startSeconds: 27843 },
+  "lesson-8.html": { lessonLabel: "Lesson 08", startLabel: "8:48:46", startSeconds: 31726 },
+  "lesson-9.html": { lessonLabel: "Lesson 09", startLabel: "21:47:09", startSeconds: 78429 },
+  "lesson-10.html": { lessonLabel: "Lesson 10", startLabel: "22:49:29", startSeconds: 82169 },
+};
 
 function initMobileNav() {
   const header = document.querySelector(".site-header");
@@ -72,6 +84,58 @@ function initMobileNav() {
   }
 
   mobileNav.addListener(handleBreakpointChange);
+}
+
+function initLessonVideoEmbeds() {
+  const currentFile = window.location.pathname.split("/").filter(Boolean).pop();
+  const videoMeta = currentFile ? lessonVideoData[currentFile] : null;
+  const lessonBody = document.querySelector(".lesson-body");
+
+  if (!videoMeta || !lessonBody || document.querySelector(".lesson-video-band")) {
+    return;
+  }
+
+  const section = document.createElement("section");
+  const watchUrl = `https://www.youtube.com/watch?v=SqQUQHdYWyc&t=${videoMeta.startSeconds}s`;
+  const embedUrl = `https://www.youtube-nocookie.com/embed/SqQUQHdYWyc?start=${videoMeta.startSeconds}&rel=0`;
+
+  section.className = "lesson-video-band";
+  section.setAttribute("aria-labelledby", "lesson-video-title");
+  section.innerHTML = `
+    <div class="section-shell">
+      <div class="lesson-video-card">
+        <div class="lesson-video-copy">
+          <p class="section-kicker">Lesson Lecture</p>
+          <h2 id="lesson-video-title">Start the full course at the beginning of this lesson.</h2>
+          <p>
+            This player jumps straight to the point where this lesson begins in the full recording, so the lecture and
+            deck stay aligned without scrubbing through the entire course.
+          </p>
+          <div class="lesson-video-meta" aria-label="Lesson video metadata">
+            <span>${videoMeta.lessonLabel}</span>
+            <span>Starts at ${videoMeta.startLabel}</span>
+          </div>
+          <a class="hero-video-link lesson-video-link" href="${watchUrl}" target="_blank" rel="noreferrer">
+            Open on YouTube
+          </a>
+        </div>
+        <div class="lesson-video-frame hero-video-shell">
+          <div class="hero-video-window">
+            <iframe
+              src="${embedUrl}"
+              title="CUDA Programming for NVIDIA H100s lesson segment"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              referrerpolicy="strict-origin-when-cross-origin"
+              loading="lazy"
+              allowfullscreen
+            ></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  lessonBody.before(section);
 }
 
 const pipelineData = [
@@ -605,6 +669,7 @@ function initSidebarScrollSpy() {
 }
 
 initMobileNav();
+initLessonVideoEmbeds();
 initRevealAnimations();
 initPipelineShowcase();
 initFaqAccordions();
